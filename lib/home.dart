@@ -1,9 +1,11 @@
 //import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+//import 'package:flutter_neumorphic/flutter_neumorphic.dart';
 //import 'package:oauth1/oauth1.dart' as auth;
+
 /*
-IMPORTANT - Here are the fonts we're using.
+IMPORTANT - Here are the fonts in use.
 Title/App Name: Rubik
 Secondary Headings (Like on the app bar): Figtree
 Paragraph/"Standard text": Ubuntu
@@ -22,6 +24,7 @@ class Central extends StatelessWidget {
     return const MaterialApp(
       title: 'Home Screen',
       debugShowCheckedModeBanner: false,
+
       home: MyHomePage(),
     );
   }
@@ -45,11 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.blue,
-      ),
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           backgroundColor: const Color.fromARGB(255, 175, 20, 210),
           title: Text('Insert App Name',
@@ -59,8 +58,10 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         backgroundColor: Colors.transparent,
         //VVV MAIN CODE IS BELOW VVV
-        body: const Text("Hello World!"),
-      )
+        body: const Center(
+
+        )
+
     );
   }
 }

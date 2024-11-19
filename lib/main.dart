@@ -1,27 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 //import 'package:http/http.dart' as http;
-import 'package:oauth1/oauth1.dart' as auth;
+import 'package:oauth1/oauth1.dart' as oauth1;
 import 'package:google_fonts/google_fonts.dart';
-import 'home.dart' as home;
+//import 'home.dart' as home;
 //import 'package:url_launcher/url_launcher.dart';
 //import 'dart:convert';
+import 'dart:io';
 
-/*
-IMPORTANT - Here are the fonts we're using.
-Title/App Name: Rubik
-Secondary Headings (Like on the app bar): Figtree
-Paragraph/"Standard text": Ubuntu
-*/
 
 void main() {
   runApp(const MyApp());
-
+  /*
   runApp(
     const MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: home.Central(),
     )
   );
+  */
 }
 
 class MyApp extends StatelessWidget {
@@ -57,8 +54,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController callbackController = TextEditingController();
 
-  late auth.AuthorizationResponse tempCredentials;
-  late auth.Authorization authorize;
 
   @override
   void dispose() {
@@ -71,122 +66,92 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _initializeOAuth();
   }
 
-  /*
-  void login() async {
+  Future<void> stepOne() async {
     try {
-      tempCredentials = await authorize
-          .requestTemporaryCredentials('coolSchoologyAPIapp://oauth-callback');
-      var authorizationUrl = authorize
-          .getResourceOwnerAuthorizationURI(tempCredentials.credentials.token);
+      print("point A");
+      const String SCHOOLOGY_DOMAIN = "schoology.coppellisd.com";
+      final oauth1.Platform platform = oauth1.Platform(
+          'https://api.schoology.com/v1/oauth/request_token',
+          'https://$SCHOOLOGY_DOMAIN/oauth/authorize',
+          'https://api.schoology.com/v1/oauth/access_token',
+          oauth1.SignatureMethods.hmacSha1
+      );
+      const String consK = "4228fad5be57913f4a288c71007cce38066a6a9c6";
+      const String consS = "f16aa4e412861b3be29314970e2740ba";
+      final oauth1.ClientCredentials clientCredentials = oauth1.ClientCredentials(consK, consS);
+      final oauth1.Authorization auth = oauth1.Authorization(clientCredentials, platform);
+      print("point B");
+      try {
+        final oauth1.Client client = oauth1.Client(
+            platform.signatureMethod,
+            clientCredentials,
+            null
+        );
+        final requestTokenResponse = await client.get(
+            Uri.parse('https://api.schoology.com/v1/oauth/request_token')
+        );
 
-      setState(() {
-        url = 'Please open this URL in a browser: $authorizationUrl';
-      });
+        final params = Uri(query: requestTokenResponse.body).queryParameters;
+        final tempToken = params['oauth_token'];
+        final tempTokenSecret = params['oauth_token_secret'];
 
-      //await launchUrl(Uri.parse(authorizationUrl));
-      //this line is commented because of issues with the launchUrl library
-
-      // The user will now be redirected to the Schoology authorization page
-      // After authorization, your app should be opened again via the callback URL
-    } catch (e) {
-      setState(() {
-        url = 'Error occurred during login: $e';
-      });
-    }
-  }
-  */
-
-  void _initializeOAuth() {
-    var platform = auth.Platform(
-      'https://api.schoology.com/v1/oauth/request_token',
-      'https://www.schoology.com/oauth/authorize',
-      'https://api.schoology.com/v1/oauth/access_token',
-      auth.SignatureMethods.hmacSha1,
-    );
-    var clientCredentials = auth.ClientCredentials(
-        '4228fad5be57913f4a288c71007cce38066a6a9c6',
-        'f16aa4e412861b3be29314970e2740ba');
-
-    authorize = auth.Authorization(clientCredentials, platform);
-  }
-
-  /*
-  void _handleCallback() async {
-    String callbackUrl = callbackController.text;
-    try {
-      var uri = Uri.parse(callbackUrl);
-      var verifier = uri.queryParameters['oauth_verifier'];
-
-      if (verifier != null) {
-        try {
-          var accessToken = await authorize.requestTokenCredentials(
-              tempCredentials.credentials, verifier);
-
-          setState(() {
-            url =
-                'Successfully logged in! Token: ${accessToken.credentials.token}';
-          });
-        } catch (e) {
-          setState(() {
-            url = 'Error getting access token: $e';
-          });
+        if (tempToken == null || tempTokenSecret == null) {
+          throw Exception('Failed to parse oauth tokens from response');
         }
-      } else {
-        setState(() {
-          url = 'No verifier received in the callback URL';
-        });
+
+        final tempCredentials = oauth1.Credentials(tempToken, tempTokenSecret);
+        print("point C");
+
+        // Using Coppell ISD's domain for authorization
+        final authUri = 'https://$SCHOOLOGY_DOMAIN/oauth/authorize?oauth_token=$tempToken';
+        print('Open with your browser: $authUri');
+
+        print('After authorizing, enter the verifier (PIN):');
+        String verifier = stdin.readLineSync() ?? '';
+
+        final tempClient = oauth1.Client(
+            platform.signatureMethod,
+            clientCredentials,
+            tempCredentials
+        );
+
+        final accessTokenResponse = await tempClient.get(
+            Uri.parse('https://api.schoology.com/v1/oauth/access_token?oauth_verifier=$verifier')
+        );
+
+        print('Access token response: ${accessTokenResponse.body}');
+
+        final accessParams = Uri(query: accessTokenResponse.body).queryParameters;
+        final accessToken = accessParams['oauth_token'];
+        final accessTokenSecret = accessParams['oauth_token_secret'];
+
+        if (accessToken == null || accessTokenSecret == null) {
+          throw Exception('Failed to parse access tokens from response');
+        }
+
+        final authedClient = oauth1.Client(
+            platform.signatureMethod,
+            clientCredentials,
+            oauth1.Credentials(accessToken, accessTokenSecret)
+        );
+
+        final response = await authedClient.get(
+            Uri.parse('https://api.schoology.com/v1/messages/inbox')
+        );
+        print('API Response: ${response.body}');
+
+      } catch (e, stackTrace) {
+        print('Error during OAuth process: $e');
+        print('Detailed stack trace:');
+        print(stackTrace.toString().split('\n').take(10).join('\n'));
       }
+
     } catch (e) {
-      setState(() {
-        url = 'Error processing callback URL: $e';
-      });
+      print('Error during OAuth setup: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
-  }
-  */
-
-  void startAuth() async {
-    try {
-      var res = await authorize.requestTemporaryCredentials('oob');
-      String authUrl =
-          authorize.getResourceOwnerAuthorizationURI(res.credentials.token);
-
-      setState(() {
-        url = authUrl;
-      });
-
-      String verifier = await getVerifier();
-
-      var tokenCredentials =
-          await authorize.requestTokenCredentials(res.credentials, verifier);
-
-      setState(() {
-        url = 'Authenticated! Token: ${tokenCredentials.credentials.token}';
-      });
-    } catch (e) {
-      setState(() {
-        url = 'Error: $e';
-      });
-    }
-  }
-
-  Future<String> getVerifier() async {
-    // This is just a placeholder. In a real app, you'd get this from user input after they authorize.
-    Completer<String> completer = Completer<String>();
-    bool waitingForVerifier = true;
-
-    callbackController.addListener(() {
-      if (callbackController.text.isNotEmpty && waitingForVerifier) {
-        waitingForVerifier = false;
-        completer.complete(callbackController.text);
-      }
-    });
-
-    String verifier = await completer.future;
-
-    return verifier;
   }
 
 //-------------------------------------------------------------\\
@@ -240,11 +205,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          startAuth();
-          //login();
-          //_handleCallback();
-        },
+        onPressed: stepOne,
         tooltip: 'Log in',
         child: const Icon(
           Icons.arrow_forward_ios_rounded,
@@ -254,12 +215,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
-
-
-
-
-//k 4228fad5be57913f4a288c71007cce38066a6a9c6
-//s f16aa4e412861b3be29314970e2740ba
-
-
