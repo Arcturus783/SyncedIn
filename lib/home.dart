@@ -45,21 +45,38 @@ class MyHomePage extends StatefulWidget {
 
 
 class _MyHomePageState extends State<MyHomePage> {
-
+  int currentIndex = 0; //1 is extra page, 2 is home page, 3 is settings
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: const Color.fromARGB(255, 175, 20, 210),
-          title: Text('Insert App Name',
-            style: GoogleFonts.figtree(
-              textStyle: const TextStyle(
-                color: Color.fromARGB(255, 241, 241, 241)))),
+        bottomNavigationBar: NavigationBar(
+          onDestinationSelected: (int index) {
+            setState((){
+              currentIndex = index;
+            });
+          },
+          indicatorColor: const Color.fromARGB(255, 175, 20, 210),
+          selectedIndex: currentIndex,
+          destinations: const <Widget>[
+            NavigationDestination(
+              icon: Icon(Icons.school_rounded),
+              label: "Extra Page", //temporary label
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.home_rounded),
+              label: "Home",
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_accessibility_rounded),
+              label: "Settings",
+            ),
+          ]
         ),
-        backgroundColor: Colors.transparent,
         //VVV MAIN CODE IS BELOW VVV
         body: const Center(
-
+          child: Text(
+            "Hello World!"
+          )
         )
 
     );

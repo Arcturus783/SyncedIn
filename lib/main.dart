@@ -1,24 +1,22 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-//import 'package:http/http.dart' as http;
 import 'package:oauth1/oauth1.dart' as oauth1;
 import 'package:google_fonts/google_fonts.dart';
-//import 'home.dart' as home;
+import 'home.dart' as home;
 //import 'package:url_launcher/url_launcher.dart';
-//import 'dart:convert';
 import 'dart:io';
 
 
 void main() {
-  runApp(const MyApp());
-  /*
+  //runApp(const MyApp());
+
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: home.Central(),
     )
   );
-  */
+
 }
 
 class MyApp extends StatelessWidget {
@@ -49,6 +47,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _counter = 0;
+  Completer<void> _buttonCompleter = Completer<void>();
   var url = "url thingy";
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -69,6 +68,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> stepOne() async {
+    setState((){
+      url = "First half of log in";
+    });
     try {
       print("point A");
       const String SCHOOLOGY_DOMAIN = "schoology.coppellisd.com";
@@ -201,6 +203,13 @@ class _MyHomePageState extends State<MyHomePage> {
               url,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            ElevatedButton(
+              onPressed: stepOne,
+              child: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Color.fromARGB(255, 175, 20, 210),
+              ),
+            ),
           ],
         ),
       ),
@@ -211,7 +220,9 @@ class _MyHomePageState extends State<MyHomePage> {
           Icons.arrow_forward_ios_rounded,
           color: Color.fromARGB(255, 175, 20, 210),
         ),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
+
+      // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
