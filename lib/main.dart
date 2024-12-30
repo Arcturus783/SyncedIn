@@ -7,7 +7,18 @@
   import 'package:flutter_secure_storage/flutter_secure_storage.dart';
   
   const storage = FlutterSecureStorage();
-  
+
+  /*
+  If you have no idea how to log in:
+
+  Click the button in the bottom right corner - it'll open schoology in the emulator or
+  you can use the link printed to the console since that's faster.
+  Log in to schoology.
+  Go back to the emulator and press the other button.
+
+  goofy ahh process so we'll have to neaten it out and update ui
+   */
+
   void main() async {
     WidgetsFlutterBinding.ensureInitialized();
     String? token = await storage.read(key: 'oauth_token');
@@ -25,7 +36,6 @@
           )
       );
     }
-
   }
 
   void clearLogin() async {

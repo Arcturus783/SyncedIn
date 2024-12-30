@@ -31,18 +31,19 @@ dependencies:
   flutter:
     sdk: flutter
 
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
   oauth1: ^2.0.0
   http: ^1.1.0
-  flutter_neumorphic: ^3.2.0
   google_fonts: ^4.0.4
   url_launcher: ^6.2.4
   flutter_secure_storage: ^9.2.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  flutter_native_splash: ^2.4.4
+
+flutter_native_splash:
+  background_image: "assets/tempologo.png"
+  #look at this link to actually design it https://pub.dev/packages/flutter_native_splash
 
 dev_dependencies:
   flutter_test:

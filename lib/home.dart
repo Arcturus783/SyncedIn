@@ -83,6 +83,15 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+class Assignment{
+  final String title;
+  final String dueDate;
+
+  Assignment({
+    required this.title,
+    required this.dueDate,
+  });
+}
 
 class _MyHomePageState extends State<MyHomePage> {
   int currentIndex = 1; //0 is extra page, 1 is home page, 2 is settings
@@ -90,7 +99,11 @@ class _MyHomePageState extends State<MyHomePage> {
   late String oToken;
   late String oSecret;
   late bool needCourses;
-  List<String> allTitles = [];
+  int numCourses = 0;
+  bool showAssignmentsNoDueDate = hiveManager.isInitialized ? hiveManager.box.get("showAssignmentsNoDueDate") : false;
+
+  Map<String, List<Assignment>> assignments = {};
+
 
   @override
   void initState(){
@@ -101,7 +114,9 @@ class _MyHomePageState extends State<MyHomePage> {
     if(needCourses){
       getCourses();
     }
+    viewAssignments();
   }
+
 
   Future<void> getCourses()async{
     try{
@@ -134,7 +149,10 @@ class _MyHomePageState extends State<MyHomePage> {
       List<dynamic> courseIds = sections.map((section) => section['id']).toList();
       await hiveManager.box.put("courses", courseTitles);
       await hiveManager.box.put("ids", courseIds);
-
+      showAssignmentsNoDueDate = hiveManager.box.get("showAssignmentsNoDueDate");
+      setState((){
+        numCourses = courseTitles.length;
+      });
     } catch(e){
       print("Error during API process: $e");
     }
@@ -147,7 +165,7 @@ class _MyHomePageState extends State<MyHomePage> {
       await hiveManager.init();
       await getCourses();
     }
-    List<dynamic>? courses = hiveManager.box.get("ids");
+    List<dynamic>? courses = hiveManager.box.get("courses");
     print("Fetched courses");
     setState((){
       if(courses != null && courses.isNotEmpty){
@@ -179,41 +197,60 @@ class _MyHomePageState extends State<MyHomePage> {
           oauth1.ClientCredentials(consK, consS);
       final authedClient = oauth1.Client(platform.signatureMethod,
           clientCredentials, oauth1.Credentials(oToken, oSecret));
+      DateTime today = DateTime.now();
 
-      int start = 0;
-      const int limit = 20;
-      bool hasMore = true;
-      List<String> currentTitles = [];
+      for (int x = 0; x < ids.length; x++) {
+        int start = 0;
+        const int limit = 20;
+        bool hasMore = true;
+        List<Assignment> courseAssignments = [];
+        var courseName = hiveManager.box.get("courses")[x];
 
-      while (hasMore) {
-        final response = await authedClient.get(
-            Uri.parse('https://api.schoology.com/v1/sections/${ids[2]}/assignments?start=$start&limit=$limit')
-        );
+        // Process all assignments for this course
+        while (hasMore) {
+          final response = await authedClient.get(
+              Uri.parse('https://api.schoology.com/v1/sections/${ids[x]}/assignments?start=$start&limit=$limit')
+          );
 
-        if (response.statusCode != 200) {
-          throw Exception('Failed to fetch assignments: ${response.statusCode}');
+          if (response.statusCode != 200) {
+            throw Exception('Failed to fetch assignments: ${response.statusCode}');
+          }
+
+          Map<String, dynamic> data = jsonDecode(response.body);
+          List<dynamic> assignments = data['assignment'];
+
+          if (assignments.isEmpty) {
+            hasMore = false;
+          } else {
+            for(var assignment in assignments){
+              courseAssignments.add(Assignment(
+                title: assignment["title"],
+                dueDate: assignment['due'],
+              ));
+            }
+            /*
+            setState(() {
+              allTitles.addAll(assignments.map<String>((assignment) => assignment['title'] as String));
+              allDates.addAll(assignments.map<String>((assignment) => assignment['due'] as String));
+              allDueToday.addAll(assignments.map<bool>((assignment) => (DateTime.parse(assignment['due']).day == today.day) ? true : false));
+            });
+             */
+            start += limit;
+          }
+          //delay prevents rate limiting
+          await Future.delayed(const Duration(milliseconds: 100));
         }
-
-        Map<String, dynamic> data = jsonDecode(response.body);
-        List<dynamic> assignments = data['assignment'];
-
-        if (assignments.isEmpty) {
-          hasMore = false;
-        } else {
-          // Extract only the titles from the assignments
-          List<String> titles = assignments.map<String>((assignment) => assignment['title'] as String).toList();
-          currentTitles.addAll(titles);
-          start += limit;
-        }
+       setState((){
+         assignments[courseName] = courseAssignments;
+       });
       }
+      /*
       setState((){
         allTitles = currentTitles;
+        allDates = currentDates;
       });
-      /*
-      for(int i = 0; i < allTitles.length; i++){
-        print(allTitles[i]);
-      }
-      */
+
+       */
     } catch(e){
       print("Something went wrong: Error $e");
     }
@@ -240,60 +277,117 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Widget _homeScreen(){
-    return Center(
-        child: Column(
-            children: <Widget>[
-              const SizedBox(
-                height: 100,
-              ),
-              Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: <Widget>[
-                    IconButton(
-                      icon: const Icon(Icons.assignment_ind_rounded),
-                      onPressed: viewCourses,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.assignment_turned_in_rounded),
-                      onPressed: viewAssignments,
-                    ),
-                    IconButton(
-                        icon: const Icon(Icons.delete_forever_rounded),
-                        onPressed: (){
-                          setState((){
-                            testWords = "";
-                            allTitles = [];
-                          });
-                        }
-                    ),
-                  ]
-              ),
-              Text(
-                "\n$testWords",
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 5, 0, 0),
-                  child: allTitles.isEmpty ? const Center(child: Text("Nothing to display.")) :
-                  ListView.builder(
-                    itemCount: allTitles.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(
-                          allTitles[index],
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      );
-                    }
+  /*
+  ----------------------------------------------------------------------------
+  -------------------------------Home Screen UI-------------------------------
+  ----------------------------------------------------------------------------
+   */
+
+  Widget _homeScreen() {
+    return Column(
+        children: <Widget>[
+          const Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(10, 50, 0, 15),
+              child: Text(
+                  "Fancy Welcome Text",
+                  textAlign: TextAlign.left,
+                  style: TextStyle(
+                    fontSize: 30,
                   )
-                )
-              )
-            ]
-        )
-    );
+              ),
+            )
+          ),
+          // Main content area
+          Expanded(
+            child: assignments.isEmpty
+                ? const Center(child: Text("No assignments to display"))
+                : ListView.builder(
+              itemCount: assignments.length,
+              //this iterates and displays each individual course
+              itemBuilder: (BuildContext context, int courseIndex) {
+                String courseTitle = assignments.keys.elementAt(courseIndex);
+                List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
+
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          courseTitle,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      if (courseAssignments.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(child: Text("No assignments for this course")),
+                        )
+                      else
+                        //this iterates and displays each course's assignments for today
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: courseAssignments.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            Assignment assignment = courseAssignments[index];
+                            DateTime today = DateTime.now();
+                            //this ensures we only display assignments for this month
+                            try {
+                              if ((showAssignmentsNoDueDate && (assignment.dueDate == " " || assignment.dueDate == "")) || today.month == DateTime.parse(assignment.dueDate).month) {
+                                /*
+                                IMPORTANT
+
+                                copy/paste whatever code you write below to display the assignments
+                                into the catch block. this is so that if the device for some reason can't
+                                parse the due date, it'll display the assignment "just to be safe"
+                                 */
+                                return ListTile(
+                                  title: Text(assignment.title),
+                                  subtitle:
+                                  Text(assignment.dueDate),
+                                  contentPadding:
+                                  const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 4.0),
+                                );
+                              }
+                            } catch(e){
+                              print("Error: e");
+                              //I'd return a card here or a fancy looking container instead of a ListTile
+                              //if you want you can play around with a neumorphic design for this - up to you
+                              return Tooltip(
+                                message: assignment.dueDate,
+                                child: ListTile(
+                                  title: Text(assignment.title),
+                                  subtitle:
+                                  Text("Due: ${assignment.dueDate}"),
+                                  contentPadding:
+                                  const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 4.0),
+                                )
+                              );
+                            }
+                          },
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
   }
+
+  /*
+  ----------------------------------------------------------------------------
+  -----------------------------Settings Screen UI-----------------------------
+  ----------------------------------------------------------------------------
+   */
 
   Widget _settingsScreen(){
     return Center(
@@ -303,7 +397,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 height: 100,
               ),
               const Text(
-                  "Settings"
+                  "Settings (button below is to logout)"
               ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded),
@@ -311,18 +405,96 @@ class _MyHomePageState extends State<MyHomePage> {
                   logout(context);
                 },
               ),
+              Switch(
+                activeColor: Colors.purpleAccent,
+                value: showAssignmentsNoDueDate,
+                onChanged: (bool val){
+                  setState((){
+                    showAssignmentsNoDueDate = val;
+                    hiveManager.box.put("showAssignmentsNoDueDate", showAssignmentsNoDueDate);
+                  });
+                }
+              )
             ]
         )
     );
   }
 
+  /*
+  ----------------------------------------------------------------------------
+  -----------------------------Calendar Screen UI-----------------------------
+  ----------------------------------------------------------------------------
+   */
+
   Widget _calendarScreen(){
-    return const Center(
-        child: Text(
-            "Calendar (or smth else)"
+    return Center(
+        child: Column(
+          children: <Widget>[
+              const SizedBox(height: 60),
+              const Text("Calendar Screen - for now just loads all assignments"),
+            Expanded(
+              child: assignments.isEmpty
+                  ? const Center(child: Text("No assignments to display"))
+                  : ListView.builder(
+                itemCount: assignments.length,
+                itemBuilder: (BuildContext context, int courseIndex) {
+                  String courseTitle = assignments.keys.elementAt(courseIndex);
+                  List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
+
+                  return Card(
+                    margin: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            courseTitle,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        if (courseAssignments.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: Text("No assignments for this course")),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: courseAssignments.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              Assignment assignment = courseAssignments[index];
+                              return Tooltip(
+                                  message: assignment.dueDate,
+                                  child: ListTile(
+                                    title: Text(assignment.title),
+                                    subtitle:
+                                    Text("Due: ${assignment.dueDate}"),
+                                    contentPadding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 16.0, vertical: 4.0),
+                                  )
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ]
         )
     );
   }
+
+
+  /*
+  ----------------------------------------------------------------------------
+  ---------------------App Bar + Bottom Navigation Bar UI---------------------
+  ----------------------------------------------------------------------------
+   */
 
   @override
   Widget build(BuildContext context) {
@@ -361,43 +533,67 @@ class _MyHomePageState extends State<MyHomePage> {
               label: "Assignments",
             ),
             NavigationDestination(
-              icon: Icon(Icons.settings_accessibility_rounded),
+              icon: Icon(Icons.settings_applications_rounded),
               label: "Settings",
             ),
           ]
       ),
-      //VVV MAIN CODE IS BELOW VVV
       body: _chooseScreen(currentIndex),
-
     );
   }
 }
-
 
 
 /*
-class Section {
-  final String id;
-  final String courseTitle;
-  final String courseId;
+Expanded(
+            child: assignments.isEmpty
+                ? const Center(child: Text("No assignments to display"))
+                : ListView.builder(
+              itemCount: assignments.length,
+              itemBuilder: (BuildContext context, int courseIndex) {
+                String courseTitle = assignments.keys.elementAt(courseIndex);
+                List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
 
-  Section({
-    required this.id,
-    required this.courseTitle,
-    required this.courseId,
-  });
-
-  factory Section.fromJson(Map<String, dynamic> json) {
-    return Section(
-      id: json['id'],
-      courseTitle: json['course_title'],
-      courseId: json['course_id'],
-    );
-  }
-}
-
-// Usage
-List<Section> sections = (jsonResponse['section'] as List)
-    .map((sectionJson) => Section.fromJson(sectionJson))
-    .toList();
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          courseTitle,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      if (courseAssignments.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(child: Text("No assignments for this course")),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: courseAssignments.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            Assignment assignment = courseAssignments[index];
+                            return ListTile(
+                              title: Text(assignment.title),
+                              subtitle: Text(
+                                  "Due: ${assignment.dueDate}"
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                  vertical: 4.0
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
  */
