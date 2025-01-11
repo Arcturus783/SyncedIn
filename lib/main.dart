@@ -5,7 +5,8 @@
   import 'home.dart' as home;
   import 'package:url_launcher/url_launcher.dart';
   import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-  
+  import 'package:flutter_native_splash/flutter_native_splash.dart';
+
   const storage = FlutterSecureStorage();
 
   /*
@@ -20,10 +21,12 @@
    */
 
   void main() async {
-    WidgetsFlutterBinding.ensureInitialized();
+    WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
     String? token = await storage.read(key: 'oauth_token');
     String? secret = await storage.read(key: 'oauth_secret');
     if (secret == null || token == null){
+      FlutterNativeSplash.remove();
       runApp(const MyApp());
     } else{
       runApp(

@@ -4,7 +4,9 @@ import 'package:oauth1/oauth1.dart' as oauth1;
 import 'main.dart' as main_screen;
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
+//this class manages our library storing data like course names and IDs
 class HiveBoxManager{
   static final HiveBoxManager _instance= HiveBoxManager._internal();
   late final Box<dynamic> box;
@@ -26,16 +28,16 @@ class HiveBoxManager{
   bool get isInitialized => _initialized;
 }
 
-//late final Box<dynamic> box;
 final hiveManager = HiveBoxManager();
 
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized(); //VERY IMPORTANT!
   await hiveManager.init();
   List<dynamic>? courses = hiveManager.box.get("courses", defaultValue: null);
   List<dynamic>? ids = hiveManager.box.get("ids", defaultValue: null);
-  if(courses == null || ids == null){
+  String? name = hiveManager.box.get("name", defaultValue: null);
+  if(courses == null || ids == null || name == null){
     runApp(const Central(coursesNeeded: true,));
   } else{
     runApp(const Central());
@@ -100,8 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late String oSecret;
   late bool needCourses;
   int numCourses = 0;
-  bool showAssignmentsNoDueDate = hiveManager.isInitialized ? hiveManager.box.get("showAssignmentsNoDueDate") : false;
-
+  String name = "";
   Map<String, List<Assignment>> assignments = {};
 
 
@@ -111,13 +112,37 @@ class _MyHomePageState extends State<MyHomePage> {
     oToken = widget.oauthToken;
     oSecret = widget.oauthSecret;
     needCourses = widget.coursesNeeded;
+    initializeData();
+    /*
     if(needCourses){
       getCourses();
     }
+    setName();
     viewAssignments();
+     */
   }
 
+  //initializes everything ideally
+  Future<void> initializeData()async{
+      try{
+        if(!hiveManager.isInitialized){
+          await hiveManager.init();
+        }
+        if(needCourses){
+          await getCourses();
+        }
+        setState((){
+          name = hiveManager.box.get("name", defaultValue: "");
+        });
+        FlutterNativeSplash.remove();
+        viewAssignments();
+      } catch(e){
+        print("Error initializing data: $e");
+      }
+  }
 
+  //this initializes the course names and IDs so we can get assignments for each course
+  //ideally doesn't run because it gets it from storage, but if value isn't found then this will run (as seen in main method)
   Future<void> getCourses()async{
     try{
       const String schoologyDomain = "schoology.coppellisd.com";
@@ -143,22 +168,27 @@ class _MyHomePageState extends State<MyHomePage> {
       final response = await authedClient.get(
           Uri.parse('https://api.schoology.com/v1/users/$uid/sections')
       );
+      final nameResponse = await authedClient.get(
+        Uri.parse('https://api.schoology.com/v1/users/$uid')
+      );
       Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      Map<String, dynamic> jsonNameResponse = jsonDecode(nameResponse.body);
       List<dynamic> sections = jsonResponse['section'];
       List<dynamic> courseTitles = sections.map((section) => section['course_title']).toList();
       List<dynamic> courseIds = sections.map((section) => section['id']).toList();
       await hiveManager.box.put("courses", courseTitles);
       await hiveManager.box.put("ids", courseIds);
-      showAssignmentsNoDueDate = hiveManager.box.get("showAssignmentsNoDueDate");
+      await hiveManager.box.put("name", jsonNameResponse['name_first']);
       setState((){
         numCourses = courseTitles.length;
+        name = " ${jsonNameResponse['name_display']}";
       });
     } catch(e){
       print("Error during API process: $e");
     }
   }
 
-  //temp function
+  //temporary function in case of API issues
   void viewCourses()async{
     print("Fetching courses");
     if(!hiveManager.isInitialized){
@@ -176,13 +206,17 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //also temp function
-  void viewAssignments()async{
+  void setName()async{
     if(!hiveManager.isInitialized){
       await hiveManager.init();
-      await getCourses();
     }
-    //List<String> allTitles = [];
+    setState((){
+      name = hiveManager.box.get("name", defaultValue:"");
+    });
+  }
+
+  //also temporary function
+  void viewAssignments()async{
     try {
       List<dynamic> ids = hiveManager.box.get("ids");
       const String schoologyDomain = "schoology.coppellisd.com";
@@ -197,7 +231,7 @@ class _MyHomePageState extends State<MyHomePage> {
           oauth1.ClientCredentials(consK, consS);
       final authedClient = oauth1.Client(platform.signatureMethod,
           clientCredentials, oauth1.Credentials(oToken, oSecret));
-      DateTime today = DateTime.now();
+      //DateTime today = DateTime.now();
 
       for (int x = 0; x < ids.length; x++) {
         int start = 0;
@@ -244,19 +278,13 @@ class _MyHomePageState extends State<MyHomePage> {
          assignments[courseName] = courseAssignments;
        });
       }
-      /*
-      setState((){
-        allTitles = currentTitles;
-        allDates = currentDates;
-      });
-
-       */
     } catch(e){
       print("Something went wrong: Error $e");
     }
   }
-
+  //returns to home screen and clears everything
   void logout(context){
+    hiveManager.box.deleteFromDisk();
     main_screen.clearLogin();
     Navigator.push(
       context,
@@ -264,6 +292,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  //just helps organize our code
   Widget _chooseScreen(int num){
     switch(num){
       case 0:
@@ -286,20 +315,20 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _homeScreen() {
     return Column(
         children: <Widget>[
-          const Align(
+          Align(
             alignment: Alignment.topLeft,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(10, 50, 0, 15),
+              padding: const EdgeInsets.fromLTRB(10, 50, 0, 15),
               child: Text(
-                  "Fancy Welcome Text",
+                  "Hello $name!",
                   textAlign: TextAlign.left,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 30,
                   )
               ),
             )
           ),
-          // Main content area
+          // Main content area - lists all the courses AND assignments (think of the itemBuilders like nested for loops)
           Expanded(
             child: assignments.isEmpty
                 ? const Center(child: Text("No assignments to display"))
@@ -309,6 +338,16 @@ class _MyHomePageState extends State<MyHomePage> {
               itemBuilder: (BuildContext context, int courseIndex) {
                 String courseTitle = assignments.keys.elementAt(courseIndex);
                 List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
+                // Pre-filter assignments
+                List<Assignment> currentMonthAssignments = courseAssignments.where((assignment) {
+                  if (assignment.dueDate.trim().isEmpty) return true;
+                  try {
+                    DateTime dueDate = DateTime.parse(assignment.dueDate);
+                    return dueDate.month == DateTime.now().month;
+                  } catch (e) {
+                    return true; // Include assignments with invalid dates
+                  }
+                }).toList();
 
                 return Card(
                   margin: const EdgeInsets.all(8.0),
@@ -322,53 +361,55 @@ class _MyHomePageState extends State<MyHomePage> {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                      if (courseAssignments.isEmpty)
+                      if (currentMonthAssignments.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(16.0),
                           child: Center(child: Text("No assignments for this course")),
                         )
                       else
-                        //this iterates and displays each course's assignments for today
                         ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: courseAssignments.length,
+                          itemCount: currentMonthAssignments.length,
                           itemBuilder: (BuildContext context, int index) {
-                            Assignment assignment = courseAssignments[index];
-                            DateTime today = DateTime.now();
-                            //this ensures we only display assignments for this month
-                            try {
-                              if ((showAssignmentsNoDueDate && (assignment.dueDate == " " || assignment.dueDate == "")) || today.month == DateTime.parse(assignment.dueDate).month) {
-                                /*
-                                IMPORTANT
+                            Assignment assignment = currentMonthAssignments[index];
 
-                                copy/paste whatever code you write below to display the assignments
-                                into the catch block. this is so that if the device for some reason can't
-                                parse the due date, it'll display the assignment "just to be safe"
-                                 */
-                                return ListTile(
-                                  title: Text(assignment.title),
-                                  subtitle:
-                                  Text(assignment.dueDate),
-                                  contentPadding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 16.0, vertical: 4.0),
-                                );
-                              }
-                            } catch(e){
-                              print("Error: e");
-                              //I'd return a card here or a fancy looking container instead of a ListTile
-                              //if you want you can play around with a neumorphic design for this - up to you
+                            if (assignment.dueDate.trim().isEmpty) {
+                              return ListTile(
+                                title: Text(
+                                  assignment.title,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                                subtitle: const Text("No Due Date"),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0,
+                                    vertical: 4.0
+                                ),
+                              );
+                            }
+                            try {
+                              return ListTile(
+                                title: Text(
+                                  assignment.title,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                                subtitle: Text("Due: ${assignment.dueDate}"),
+                                contentPadding:
+                                const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 4.0),
+                              );
+                            } catch(e) {
                               return Tooltip(
-                                message: assignment.dueDate,
-                                child: ListTile(
+                                  message: assignment.dueDate,
+                                  child: ListTile(
                                   title: Text(assignment.title),
-                                  subtitle:
-                                  Text("Due: ${assignment.dueDate}"),
+                                  subtitle: const Text("Invalid Due Date"),
                                   contentPadding:
                                   const EdgeInsets.symmetric(
-                                      horizontal: 16.0, vertical: 4.0),
-                                )
+                                    horizontal: 16.0, vertical: 4.0),
+                                  )
                               );
                             }
                           },
@@ -405,16 +446,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   logout(context);
                 },
               ),
-              Switch(
-                activeColor: Colors.purpleAccent,
-                value: showAssignmentsNoDueDate,
-                onChanged: (bool val){
-                  setState((){
-                    showAssignmentsNoDueDate = val;
-                    hiveManager.box.put("showAssignmentsNoDueDate", showAssignmentsNoDueDate);
-                  });
-                }
-              )
             ]
         )
     );
@@ -543,7 +574,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-
+//this is the monstrosity that displays assignments - just a copy if it's needed
 /*
 Expanded(
             child: assignments.isEmpty
