@@ -5,6 +5,7 @@ import 'main.dart' as main_screen;
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 //this class manages our library storing data like course names and IDs
 class HiveBoxManager{
@@ -88,10 +89,12 @@ class MyHomePage extends StatefulWidget {
 class Assignment{
   final String title;
   final String dueDate;
+  final String type;
 
   Assignment({
     required this.title,
     required this.dueDate,
+    required this.type,
   });
 }
 
@@ -104,6 +107,11 @@ class _MyHomePageState extends State<MyHomePage> {
   int numCourses = 0;
   String name = "";
   Map<String, List<Assignment>> assignments = {};
+  Color currentColor = const Color.fromARGB(195, 230, 135, 245);
+
+  //keep transparency 195 for consistency - mess around with everything else
+  List<Color> colorOptions = [const Color.fromARGB(195, 239, 23, 23), const Color.fromARGB(195, 225, 50, 25),
+    const Color.fromARGB(195, 220, 210, 60), const Color.fromARGB(195, 230, 135, 245)];
 
 
   @override
@@ -133,6 +141,9 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         setState((){
           name = hiveManager.box.get("name", defaultValue: "");
+        });
+        setState((){
+          currentColor = Color.fromARGB(195, hiveManager.box.get("redColor", defaultValue: 230), hiveManager.box.get("blueColor", defaultValue: 135), hiveManager.box.get("greenColor", defaultValue: 245));
         });
         FlutterNativeSplash.remove();
         viewAssignments();
@@ -215,6 +226,18 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void changeColors(Color col)async{
+    setState((){
+      currentColor = Color.fromARGB(195, col.red, col.blue, col.green);
+    });
+    if(!hiveManager.isInitialized){
+      await hiveManager.init();
+    }
+    hiveManager.box.put("redColor", col.red);
+    hiveManager.box.put("blueColor", col.blue);
+    hiveManager.box.put("greenColor", col.green);
+  }
+
   //also temporary function
   void viewAssignments()async{
     try {
@@ -260,6 +283,7 @@ class _MyHomePageState extends State<MyHomePage> {
               courseAssignments.add(Assignment(
                 title: assignment["title"],
                 dueDate: assignment['due'],
+                type: assignment['type'],
               ));
             }
             /*
@@ -318,7 +342,7 @@ class _MyHomePageState extends State<MyHomePage> {
           Align(
             alignment: Alignment.topLeft,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 50, 0, 15),
+              padding: const EdgeInsets.fromLTRB(10, 25, 0, 10),
               child: Text(
                   "Hello $name!",
                   textAlign: TextAlign.left,
@@ -350,72 +374,83 @@ class _MyHomePageState extends State<MyHomePage> {
                 }).toList();
 
                 return Card(
-                  margin: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          courseTitle,
-                          style: Theme.of(context).textTheme.titleLarge,
+                    margin: const EdgeInsets.all(8.0),
+                    //color: const Color.fromARGB(195, 230, 135, 245),
+                    color: currentColor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            courseTitle,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                         ),
-                      ),
-                      if (currentMonthAssignments.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Center(child: Text("No assignments for this course")),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: currentMonthAssignments.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            Assignment assignment = currentMonthAssignments[index];
+                        if (currentMonthAssignments.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: Text("No assignments for this course")),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: currentMonthAssignments.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              Assignment assignment = currentMonthAssignments[index];
 
-                            if (assignment.dueDate.trim().isEmpty) {
-                              return ListTile(
-                                title: Text(
-                                  assignment.title,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                                subtitle: const Text("No Due Date"),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                    vertical: 4.0
-                                ),
-                              );
-                            }
-                            try {
-                              return ListTile(
-                                title: Text(
-                                  assignment.title,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                                subtitle: Text("Due: ${assignment.dueDate}"),
-                                contentPadding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 4.0),
-                              );
-                            } catch(e) {
-                              return Tooltip(
-                                  message: assignment.dueDate,
-                                  child: ListTile(
-                                  title: Text(assignment.title),
-                                  subtitle: const Text("Invalid Due Date"),
-                                  contentPadding:
-                                  const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 4.0),
+                              if (assignment.dueDate.trim().isEmpty) {
+                                return Card(
+                                    color: const Color.fromARGB(225, 252, 252, 252),
+                                    child: ListTile(
+                                    title: Text(
+                                      assignment.title,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    subtitle: const Text("No Due Date"),
+                                    trailing: const Icon(Icons.assignment_ind_rounded),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                        vertical: 4.0
+                                    ),
                                   )
-                              );
-                            }
-                          },
-                        ),
-                    ],
-                  ),
+                                );
+                              }
+                              try {
+                                return Card(
+                                    color: const Color.fromARGB(225, 252, 252, 252),
+                                    child: ListTile(
+                                    title: Text(
+                                      assignment.title,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    subtitle: Text("Due: ${assignment.dueDate}"),
+                                    contentPadding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 16.0, vertical: 4.0),
+                                    )
+                                );
+                              } catch(e) {
+                                return Tooltip(
+                                    message: assignment.dueDate,
+                                    child: Card(
+                                      child: ListTile(
+                                        title: Text(assignment.title),
+                                        subtitle: const Text("Invalid Due Date"),
+                                        contentPadding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 16.0, vertical: 4.0),
+                                      )
+                                    )
+                                );
+                              }
+                            },
+                          ),
+                      ],
+                    ),
                 );
               },
             ),
@@ -446,6 +481,16 @@ class _MyHomePageState extends State<MyHomePage> {
                   logout(context);
                 },
               ),
+              const Text(
+                "Color Picker",
+              ),
+              Expanded(
+                child: BlockPicker(
+                  pickerColor: currentColor,
+                  availableColors: colorOptions,
+                  onColorChanged: changeColors,
+                )
+              )
             ]
         )
     );
@@ -552,7 +597,7 @@ class _MyHomePageState extends State<MyHomePage> {
               currentIndex = index;
             });
           },
-          indicatorColor: const Color.fromARGB(210, 175, 20, 210),
+          indicatorColor: currentColor,//const Color.fromARGB(210, 175, 20, 210),
           selectedIndex: currentIndex,
           destinations: const <Widget>[
             NavigationDestination(
@@ -574,7 +619,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-//this is the monstrosity that displays assignments - just a copy if it's needed
+//this is the monstrosity that displays assignments - just a copy if it's needed (*cough* if Claude destroys the normal version)
 /*
 Expanded(
             child: assignments.isEmpty
