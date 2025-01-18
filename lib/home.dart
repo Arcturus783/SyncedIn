@@ -106,6 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late bool needCourses;
   int numCourses = 0;
   String name = "";
+  List<String> dismissedAssignments = [];
   Map<String, List<Assignment>> assignments = {};
   Color currentColor = const Color.fromARGB(195, 230, 135, 245);
 
@@ -141,6 +142,9 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         setState((){
           name = hiveManager.box.get("name", defaultValue: "");
+        });
+        setState((){
+          dismissedAssignments = hiveManager.box.get("dismissedAssignments", defaultValue: "");
         });
         setState((){
           currentColor = Color.fromARGB(195, hiveManager.box.get("redColor", defaultValue: 230), hiveManager.box.get("blueColor", defaultValue: 135), hiveManager.box.get("greenColor", defaultValue: 245));
@@ -401,22 +405,47 @@ class _MyHomePageState extends State<MyHomePage> {
                               Assignment assignment = currentMonthAssignments[index];
 
                               if (assignment.dueDate.trim().isEmpty) {
-                                return Card(
-                                    color: const Color.fromARGB(225, 252, 252, 252),
-                                    child: ListTile(
-                                    title: Text(
-                                      assignment.title,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                    subtitle: const Text("No Due Date"),
-                                    trailing: const Icon(Icons.assignment_ind_rounded),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0,
-                                        vertical: 4.0
-                                    ),
+                                //this allows the user to slide and remove an assignment
+                                return Dismissible(
+                                    key: Key(assignment.title),
+                                    direction: DismissDirection.endToStart,
+                                    onDismissed: (direction){
+                                      setState((){
+                                        currentMonthAssignments.removeAt(index); //remove from active list
+                                        assignments[courseTitle]?.removeAt(index); //remove from assignments for the course list (??)
+                                      });
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('${assignment.title} removed'),
+                                            action: SnackBarAction(
+                                              label: 'UNDO',
+                                              onPressed: () {
+                                                setState(() {
+                                                  currentMonthAssignments.insert(index, assignment);
+                                                  assignments[courseTitle]?.insert(index, assignment);
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                      );
+                                    },
+                                    child: Card(
+                                      color: const Color.fromARGB(225, 252, 252, 252),
+                                      child: ListTile(
+                                      title: Text(
+                                        assignment.title,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                      subtitle: const Text("No Due Date"),
+                                      trailing: (assignment.type == "assessment") ? const Icon(Icons.assessment_rounded) : (assignment.type == "discussion") ? const Icon(Icons.message_rounded) : const Icon(Icons.assignment_rounded),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0,
+                                          vertical: 4.0
+                                      ),
+                                    )
                                   )
-                                );
+                              );
                               }
                               try {
                                 return Card(
@@ -428,6 +457,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       maxLines: 1,
                                     ),
                                     subtitle: Text("Due: ${assignment.dueDate}"),
+                                    trailing: (assignment.type == "assessment") ? const Icon(Icons.assessment_rounded) : (assignment.type == "discussion") ? const Icon(Icons.message_rounded) : const Icon(Icons.assignment_rounded),
                                     contentPadding:
                                     const EdgeInsets.symmetric(
                                         horizontal: 16.0, vertical: 4.0),
@@ -440,6 +470,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       child: ListTile(
                                         title: Text(assignment.title),
                                         subtitle: const Text("Invalid Due Date"),
+                                        trailing: (assignment.type == "assessment") ? const Icon(Icons.assessment_rounded) : (assignment.type == "discussion") ? const Icon(Icons.message_rounded) : const Icon(Icons.assignment_rounded),
                                         contentPadding:
                                         const EdgeInsets.symmetric(
                                             horizontal: 16.0, vertical: 4.0),
