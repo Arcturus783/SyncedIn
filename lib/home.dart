@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 //this class manages our library storing data like course names and IDs
 class HiveBoxManager{
@@ -107,8 +108,12 @@ class _MyHomePageState extends State<MyHomePage> {
   int numCourses = 0;
   String name = "";
   List<String> dismissedAssignments = [];
+  List<Assignment> assignmentsPerDay = [];
   Map<String, List<Assignment>> assignments = {};
   Color currentColor = const Color.fromARGB(195, 230, 135, 245);
+
+  DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
 
   //keep transparency 195 for consistency - mess around with everything else
   List<Color> colorOptions = [const Color.fromARGB(195, 239, 23, 23), const Color.fromARGB(195, 225, 50, 25),
@@ -144,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
           name = hiveManager.box.get("name", defaultValue: "");
         });
         setState((){
-          dismissedAssignments = hiveManager.box.get("dismissedAssignments", defaultValue: "");
+          dismissedAssignments = hiveManager.box.get("dismissedAssignments", defaultValue: [""]);
         });
         setState((){
           currentColor = Color.fromARGB(195, hiveManager.box.get("redColor", defaultValue: 230), hiveManager.box.get("blueColor", defaultValue: 135), hiveManager.box.get("greenColor", defaultValue: 245));
@@ -320,6 +325,48 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  List<Assignment> _getEventsToday(DateTime day){
+    List<Assignment> aTD = [];
+    if(assignments.isNotEmpty) {
+      for (List<Assignment> courseAssignments in assignments.values) {
+        for (Assignment a in courseAssignments) {
+          try {
+            if (DateTime
+                .parse(a.dueDate.trim())
+                .day == day.day) {
+              aTD.add(a);
+            }
+          } catch (e) {
+            print("Error displaying events: $e");
+          }
+        }
+      }
+    }
+    return aTD;
+  }
+
+  void getAssignmentsForDay(DateTime day){
+    setState((){
+      assignmentsPerDay = _getEventsToday(day);
+    });
+    assignmentsPerDay = [];
+    if(assignments.isNotEmpty){
+      for(List<Assignment> courseAssignments in assignments.values){
+        for(Assignment a in courseAssignments){
+          try{
+            if(DateTime.parse(a.dueDate.trim()).day == day.day){
+              setState((){
+                assignmentsPerDay.add(a);
+              });
+            }
+          } catch(e){
+            print("Error displaying events: $e");
+          }
+        }
+      }
+    }
+  }
+
   //just helps organize our code
   Widget _chooseScreen(int num){
     switch(num){
@@ -456,8 +503,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
                                     ),
-                                    subtitle: Text("Due: ${assignment.dueDate}"),
-                                    trailing: (assignment.type == "assessment") ? const Icon(Icons.assessment_rounded) : (assignment.type == "discussion") ? const Icon(Icons.message_rounded) : const Icon(Icons.assignment_rounded),
+                                    subtitle: Text("Due: ${assignment.dueDate.split(" ")[0]}\n${assignment.dueDate.split(" ")[1]}"),
+                                    trailing: (assignment.type == "assessment") ? const Tooltip(message: "Assessment", child: Icon(Icons.assessment_rounded),):
+                                    (assignment.type == "discussion") ? const Tooltip(message: "Discussion", child: Icon(Icons.message_rounded)) :
+                                    const Tooltip(message: "Assignment", child: Icon(Icons.assignment_rounded)),
                                     contentPadding:
                                     const EdgeInsets.symmetric(
                                         horizontal: 16.0, vertical: 4.0),
@@ -513,7 +562,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
               ),
               const Text(
-                "Color Picker",
+                "Color Picker (saves color choice)",
               ),
               Expanded(
                 child: BlockPicker(
@@ -532,67 +581,86 @@ class _MyHomePageState extends State<MyHomePage> {
   -----------------------------Calendar Screen UI-----------------------------
   ----------------------------------------------------------------------------
    */
-
+  //documentation for calendar package
+  //https://pub.dev/documentation/table_calendar/latest/
+  //examples: https://github.com/aleksanderwozniak/table_calendar/tree/master/example/lib/pages
   Widget _calendarScreen(){
-    return Center(
-        child: Column(
-          children: <Widget>[
-              const SizedBox(height: 60),
-              const Text("Calendar Screen - for now just loads all assignments"),
-            Expanded(
-              child: assignments.isEmpty
-                  ? const Center(child: Text("No assignments to display"))
-                  : ListView.builder(
-                itemCount: assignments.length,
-                itemBuilder: (BuildContext context, int courseIndex) {
-                  String courseTitle = assignments.keys.elementAt(courseIndex);
-                  List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
-
-                  return Card(
-                    margin: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            courseTitle,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                        if (courseAssignments.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: Text("No assignments for this course")),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: courseAssignments.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              Assignment assignment = courseAssignments[index];
-                              return Tooltip(
-                                  message: assignment.dueDate,
-                                  child: ListTile(
-                                    title: Text(assignment.title),
-                                    subtitle:
-                                    Text("Due: ${assignment.dueDate}"),
-                                    contentPadding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 16.0, vertical: 4.0),
-                                  )
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  );
-                },
+    CalendarFormat calendarFormat = CalendarFormat.month;
+    return Column(
+        children: <Widget>[
+          TableCalendar(
+            availableCalendarFormats: const {CalendarFormat.month: "Month"},
+            headerStyle: const HeaderStyle(
+              titleCentered: true,
+              titleTextStyle: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+              )
+            ),
+            firstDay: DateTime.utc(2025, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            eventLoader: _getEventsToday,
+            selectedDayPredicate: (day){
+              return isSameDay(_selectedDay, day);
+            },
+            onDaySelected: (selectedDay, focusedDay) {
+              getAssignmentsForDay(selectedDay);
+              setState(() {
+                _focusedDay = focusedDay;
+                _selectedDay = selectedDay;
+              });
+            },
+            calendarFormat: calendarFormat,
+            onFormatChanged: (format) {
+              setState(() {
+                calendarFormat = format;
+              });
+            },
+            calendarStyle: CalendarStyle(
+              //you can specify a font too for the calendar text here
+              defaultTextStyle: const TextStyle(color: Color.fromARGB(255, 5, 5, 5)),
+              markerSize: 7, //size of an event dot
+              markersMaxCount: 3, //default is 4, looks crowded if they have 4+ assignments
+              todayDecoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
               ),
             ),
-          ]
-        )
+        ),
+          const SizedBox(height: 30),
+          Expanded(
+            child: ListView.builder(
+              itemCount: assignmentsPerDay.length,
+              itemBuilder: (BuildContext context, int index){
+                //return Text("1. ${assignmentsPerDay[index].title}");
+                Assignment assignment = assignmentsPerDay[index];
+                return Card(
+                    color: const Color.fromARGB(225, 252, 252, 252),
+                    child: ListTile(
+                      title: Text(
+                        assignment.title,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      subtitle: Text("Due: ${assignment.dueDate.split(" ")[0]}\n${assignment.dueDate.split(" ")[1]}"),
+                      trailing: (assignment.type == "assessment") ? const Tooltip(message: "Assessment", child: Icon(Icons.assessment_rounded),):
+                      (assignment.type == "discussion") ? const Tooltip(message: "Discussion", child: Icon(Icons.message_rounded)) :
+                      const Tooltip(message: "Assignment", child: Icon(Icons.assignment_rounded)),
+                      contentPadding:
+                      const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 4.0),
+                    )
+                );
+              }
+            )
+          )
+
+        ]
     );
   }
 
@@ -652,55 +720,64 @@ class _MyHomePageState extends State<MyHomePage> {
 
 //this is the monstrosity that displays assignments - just a copy if it's needed (*cough* if Claude destroys the normal version)
 /*
-Expanded(
-            child: assignments.isEmpty
-                ? const Center(child: Text("No assignments to display"))
-                : ListView.builder(
-              itemCount: assignments.length,
-              itemBuilder: (BuildContext context, int courseIndex) {
-                String courseTitle = assignments.keys.elementAt(courseIndex);
-                List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
+return Center(
+        child: Column(
+          children: <Widget>[
+              const SizedBox(height: 60),
+              const Text("Calendar Screen - for now just loads all assignments"),
+            Expanded(
+              child: assignments.isEmpty
+                  ? const Center(child: Text("No assignments to display"))
+                  : ListView.builder(
+                itemCount: assignments.length,
+                itemBuilder: (BuildContext context, int courseIndex) {
+                  String courseTitle = assignments.keys.elementAt(courseIndex);
+                  List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
 
-                return Card(
-                  margin: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          courseTitle,
-                          style: Theme.of(context).textTheme.titleLarge,
+                  return Card(
+                    margin: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            courseTitle,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                         ),
-                      ),
-                      if (courseAssignments.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Center(child: Text("No assignments for this course")),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: courseAssignments.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            Assignment assignment = courseAssignments[index];
-                            return ListTile(
-                              title: Text(assignment.title),
-                              subtitle: Text(
-                                  "Due: ${assignment.dueDate}"
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 4.0
-                              ),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
-                );
-              },
+                        if (courseAssignments.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: Text("No assignments for this course")),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: courseAssignments.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              Assignment assignment = courseAssignments[index];
+                              return Tooltip(
+                                  message: assignment.dueDate,
+                                  child: ListTile(
+                                    title: Text(assignment.title),
+                                    subtitle:
+                                    Text("Due: ${assignment.dueDate}"),
+                                    contentPadding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 16.0, vertical: 4.0),
+                                  )
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+          ]
+        )
+    );
  */
