@@ -99,17 +99,22 @@ class Assignment{
   });
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateMixin{
   int currentIndex = 1; //0 is extra page, 1 is home page, 2 is settings
   String testWords = "Hello World!";
+
   late String oToken;
   late String oSecret;
   late bool needCourses;
+
   int numCourses = 0;
   String name = "";
+
+  bool showHiddenAssignments = false;
   List<String> dismissedAssignments = [];
   List<Assignment> assignmentsPerDay = [];
   Map<String, List<Assignment>> assignments = {};
+
   Color currentColor = const Color.fromARGB(195, 230, 135, 245);
 
   DateTime _focusedDay = DateTime.now();
@@ -119,10 +124,34 @@ class _MyHomePageState extends State<MyHomePage> {
   List<Color> colorOptions = [const Color.fromARGB(195, 239, 23, 23), const Color.fromARGB(195, 225, 50, 25),
     const Color.fromARGB(195, 220, 210, 60), const Color.fromARGB(195, 230, 135, 245)];
 
+  late AnimationController _aAnimController;
+  late Animation<Offset> _slideInAnimation;
+  late Animation<Offset> _slideOutAnimation;
 
   @override
   void initState(){
     super.initState();
+    _aAnimController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _slideOutAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.0),
+      end: const Offset(-1.0, 0.0),
+    ).animate(CurvedAnimation(
+      parent: _aAnimController,
+      curve: Curves.easeInOut,
+    ));
+    _slideInAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: const Offset(0.0, 0.0),
+    ).animate(CurvedAnimation(
+      parent: _aAnimController,
+      curve: Curves.easeInOut,
+    ));
+
+
     oToken = widget.oauthToken;
     oSecret = widget.oauthSecret;
     needCourses = widget.coursesNeeded;
@@ -134,6 +163,12 @@ class _MyHomePageState extends State<MyHomePage> {
     setName();
     viewAssignments();
      */
+  }
+
+  @override
+  void dispose(){
+    _aAnimController.dispose();
+    super.dispose();
   }
 
   //initializes everything ideally
@@ -390,22 +425,46 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _homeScreen() {
     return Column(
         children: <Widget>[
-          Align(
-            alignment: Alignment.topLeft,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 25, 0, 10),
-              child: Text(
-                  "Hello $name!",
-                  textAlign: TextAlign.left,
-                  style: const TextStyle(
-                    fontSize: 30,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 25, 0, 10),
+                child: Text(
+                    "Hello $name!",
+                    textAlign: TextAlign.left,
+                    style: const TextStyle(
+                      fontSize: 30,
+                    )
+                ),
+              ),
+              Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 18, 10, 0),
+                  child: IconButton(
+                      icon: const Icon(Icons.hide_image_rounded),
+                      iconSize: 30,
+                      onPressed: (){
+                          setState((){
+                            showHiddenAssignments = !showHiddenAssignments;
+                            if(showHiddenAssignments){
+                              _aAnimController.forward();
+                            } else{
+                              _aAnimController.reverse();
+                            }
+                          });
+                      }
                   )
               ),
-            )
+            ]
           ),
           // Main content area - lists all the courses AND assignments (think of the itemBuilders like nested for loops)
+
           Expanded(
-            child: assignments.isEmpty
+            child: Stack(
+              children: [
+                SlideTransition(
+                  position: _slideOutAnimation,
+                child: assignments.isEmpty
                 ? const Center(child: Text("No assignments to display"))
                 : ListView.builder(
               itemCount: assignments.length,
@@ -418,7 +477,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   if (assignment.dueDate.trim().isEmpty) return true;
                   try {
                     DateTime dueDate = DateTime.parse(assignment.dueDate);
-                    return dueDate.month == DateTime.now().month;
+                    DateTime now = DateTime.now();
+                    return dueDate.day == now.day || dueDate == DateTime(now.year, now.month, now.day + 1);
                   } catch (e) {
                     return true; // Include assignments with invalid dates
                   }
@@ -460,6 +520,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       setState((){
                                         currentMonthAssignments.removeAt(index); //remove from active list
                                         assignments[courseTitle]?.removeAt(index); //remove from assignments for the course list (??)
+                                        dismissedAssignments.add(assignment.title);
                                       });
                                       ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
@@ -534,7 +595,41 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
             ),
-          ),
+                ),
+                SlideTransition(
+                  position: _slideInAnimation,
+                  child: Expanded(
+                    child: Center(
+                        child: dismissedAssignments.isEmpty ? const Text("No dismissed assignments")
+                        : ListView.builder(
+                          itemCount: dismissedAssignments.length,
+                          itemBuilder: (BuildContext context, int dismissedIndex){
+                            String assignment = dismissedAssignments[dismissedIndex];
+                            if(assignment.isNotEmpty) {
+                                  return Card(
+                                    color: const Color.fromARGB(
+                                        200, 244, 244, 244),
+                                    child: ListTile(
+                                      title: Text(
+                                        assignment,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                      //subtitle: Text("Due: ${assignment.dueDate.split(" ")[0]}\n${assignment.dueDate.split(" ")[1]}"),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16.0,
+                                              vertical: 4.0),
+                                    ));
+                                }
+                              }
+                        )
+                    )
+                  )
+                )
+              ]
+          )
+          )
         ],
       );
   }
@@ -562,8 +657,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
               ),
               const Text(
-                "Color Picker (saves color choice)",
+                "Color Picker (saves color choice); Add like 8-16 choices",
               ),
+              const SizedBox(height: 50),
               Expanded(
                 child: BlockPicker(
                   pickerColor: currentColor,
