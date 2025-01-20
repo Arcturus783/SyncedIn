@@ -300,6 +300,14 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           clientCredentials, oauth1.Credentials(oToken, oSecret));
       //DateTime today = DateTime.now();
 
+      List<Future<void>> fetchFutures = [];
+      List<dynamic> courses = hiveManager.box.get("courses");
+      for(int a = 0; a < ids.length; a++){
+        fetchFutures.add(_fetchAssignments(ids[a], courses[a], authedClient));
+      }
+
+      await Future.wait(fetchFutures);
+      /*
       for (int x = 0; x < ids.length; x++) {
         int start = 0;
         const int limit = 20;
@@ -340,15 +348,56 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
             start += limit;
           }
           //delay prevents rate limiting
-          await Future.delayed(const Duration(milliseconds: 100));
+          await Future.delayed(const Duration(milliseconds: 20));
         }
        setState((){
          assignments[courseName] = courseAssignments;
        });
       }
+
+       */
     } catch(e){
       print("Something went wrong: Error $e");
     }
+  }
+
+  Future<void> _fetchAssignments(String id, String courseName, oauth1.Client authedClient)async{
+    int start = 0;
+    const int limit = 20;
+    bool hasMore = true;
+    List<Assignment> courseAssignments = [];
+
+
+    while (hasMore) {
+      final response = await authedClient.get(
+          Uri.parse(
+              'https://api.schoology.com/v1/sections/$id/assignments?start=$start&limit=$limit')
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch assignments: ${response.statusCode}');
+      }
+
+      Map<String, dynamic> data = jsonDecode(response.body);
+      List<dynamic> assignments = data['assignment'];
+
+      if (assignments.isEmpty) {
+        hasMore = false;
+      } else {
+        courseAssignments.addAll(assignments.map((a) =>
+            Assignment(
+              title: a["title"],
+              dueDate: a['due'],
+              type: a['type'],
+            )));
+        start += limit;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    setState(() {
+      assignments[courseName] = courseAssignments;
+    });
   }
   //returns to home screen and clears everything
   void logout(context){
@@ -510,83 +559,176 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                             itemCount: currentMonthAssignments.length,
                             itemBuilder: (BuildContext context, int index) {
                               Assignment assignment = currentMonthAssignments[index];
-
-                              if (assignment.dueDate.trim().isEmpty) {
-                                //this allows the user to slide and remove an assignment
-                                return Dismissible(
-                                    key: Key(assignment.title),
-                                    direction: DismissDirection.endToStart,
-                                    onDismissed: (direction){
-                                      setState((){
-                                        currentMonthAssignments.removeAt(index); //remove from active list
-                                        assignments[courseTitle]?.removeAt(index); //remove from assignments for the course list (??)
-                                        dismissedAssignments.add(assignment.title);
-                                      });
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                              if(!dismissedAssignments.contains(assignment.title)){
+                                if (assignment.dueDate
+                                    .trim()
+                                    .isEmpty) {
+                                  //this allows the user to slide and remove an assignment
+                                  return Dismissible(
+                                      key: Key(assignment.title),
+                                      direction: DismissDirection.endToStart,
+                                      onDismissed: (direction) {
+                                        setState(() {
+                                          currentMonthAssignments.removeAt(
+                                              index); //remove from active list
+                                          assignments[courseTitle]?.removeAt(
+                                              index); //remove from assignments for the course list (??)
+                                          dismissedAssignments.add(
+                                              assignment.title);
+                                          hiveManager.box.put(
+                                              "dismissedAssignments",
+                                              dismissedAssignments);
+                                        });
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
-                                            content: Text('${assignment.title} removed'),
+                                            content: Text(
+                                                '${assignment.title} removed'),
                                             action: SnackBarAction(
                                               label: 'UNDO',
                                               onPressed: () {
                                                 setState(() {
-                                                  currentMonthAssignments.insert(index, assignment);
-                                                  assignments[courseTitle]?.insert(index, assignment);
+                                                  currentMonthAssignments
+                                                      .insert(
+                                                      index, assignment);
+                                                  assignments[courseTitle]
+                                                      ?.insert(
+                                                      index, assignment);
+                                                  dismissedAssignments.remove(
+                                                      assignment.title);
+                                                  hiveManager.box.put(
+                                                      "dismissedAssignments",
+                                                      dismissedAssignments);
                                                 });
                                               },
                                             ),
                                           ),
-                                      );
-                                    },
-                                    child: Card(
-                                      color: const Color.fromARGB(225, 252, 252, 252),
-                                      child: ListTile(
-                                      title: Text(
-                                        assignment.title,
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                      subtitle: const Text("No Due Date"),
-                                      trailing: (assignment.type == "assessment") ? const Icon(Icons.assessment_rounded) : (assignment.type == "discussion") ? const Icon(Icons.message_rounded) : const Icon(Icons.assignment_rounded),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 16.0,
-                                          vertical: 4.0
-                                      ),
-                                    )
-                                  )
-                              );
-                              }
-                              try {
-                                return Card(
-                                    color: const Color.fromARGB(225, 252, 252, 252),
-                                    child: ListTile(
-                                    title: Text(
-                                      assignment.title,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                    subtitle: Text("Due: ${assignment.dueDate.split(" ")[0]}\n${assignment.dueDate.split(" ")[1]}"),
-                                    trailing: (assignment.type == "assessment") ? const Tooltip(message: "Assessment", child: Icon(Icons.assessment_rounded),):
-                                    (assignment.type == "discussion") ? const Tooltip(message: "Discussion", child: Icon(Icons.message_rounded)) :
-                                    const Tooltip(message: "Assignment", child: Icon(Icons.assignment_rounded)),
-                                    contentPadding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 16.0, vertical: 4.0),
-                                    )
-                                );
-                              } catch(e) {
-                                return Tooltip(
-                                    message: assignment.dueDate,
-                                    child: Card(
-                                      child: ListTile(
-                                        title: Text(assignment.title),
-                                        subtitle: const Text("Invalid Due Date"),
-                                        trailing: (assignment.type == "assessment") ? const Icon(Icons.assessment_rounded) : (assignment.type == "discussion") ? const Icon(Icons.message_rounded) : const Icon(Icons.assignment_rounded),
-                                        contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 16.0, vertical: 4.0),
+                                        );
+                                      },
+                                      child: Card(
+                                          color: const Color.fromARGB(
+                                              225, 252, 252, 252),
+                                          child: ListTile(
+                                            title: Text(
+                                              assignment.title,
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                            subtitle: const Text("No Due Date"),
+                                            trailing: (assignment.type ==
+                                                "assessment")
+                                                ? const Icon(
+                                                Icons.assessment_rounded)
+                                                : (assignment.type ==
+                                                "discussion")
+                                                ? const Icon(
+                                                Icons.message_rounded)
+                                                : const Icon(
+                                                Icons.assignment_rounded),
+                                            contentPadding: const EdgeInsets
+                                                .symmetric(
+                                                horizontal: 16.0,
+                                                vertical: 4.0
+                                            ),
+                                          )
                                       )
+                                  );
+                                }
+                                try {
+                                  return Dismissible(
+                                  key: Key(assignment.title),
+                                  direction: DismissDirection.endToStart,
+                                  onDismissed: (direction) {
+                                    setState(() {
+                                      currentMonthAssignments.removeAt(
+                                          index); //remove from active list
+                                      assignments[courseTitle]?.removeAt(
+                                          index); //remove from assignments for the course list (??)
+                                      dismissedAssignments.add(
+                                          assignment.title);
+                                      hiveManager.box.put(
+                                          "dismissedAssignments",
+                                          dismissedAssignments);
+                                    });
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            '${assignment.title} removed'),
+                                        action: SnackBarAction(
+                                          label: 'UNDO',
+                                          onPressed: () {
+                                            setState(() {
+                                              currentMonthAssignments.insert(index, assignment);
+                                              assignments[courseTitle]?.insert(index, assignment);
+                                              dismissedAssignments.remove(assignment.title);
+                                              hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                    child: Card(
+                                        color: const Color.fromARGB(
+                                            225, 252, 252, 252),
+                                        child: ListTile(
+                                          title: Text(
+                                            assignment.title,
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                          subtitle: Text(
+                                              "Due: ${assignment.dueDate.split(
+                                                  " ")[0]}\n${assignment.dueDate
+                                                  .split(" ")[1]}"),
+                                          trailing: (assignment.type ==
+                                              "assessment") ? const Tooltip(
+                                            message: "Assessment",
+                                            child: Icon(
+                                                Icons.assessment_rounded),) :
+                                          (assignment.type == "discussion")
+                                              ? const Tooltip(
+                                              message: "Discussion",
+                                              child: Icon(Icons.message_rounded))
+                                              :
+                                          const Tooltip(message: "Assignment",
+                                              child: Icon(
+                                                  Icons.assignment_rounded)),
+                                          contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16.0, vertical: 4.0),
+                                        )
                                     )
-                                );
+                                  );
+                                } catch (e) {
+                                  return Tooltip(
+                                      message: assignment.dueDate,
+                                      child: Card(
+                                          child: ListTile(
+                                            title: Text(assignment.title),
+                                            subtitle: const Text(
+                                                "Invalid Due Date"),
+                                            trailing: (assignment.type ==
+                                                "assessment")
+                                                ? const Icon(
+                                                Icons.assessment_rounded)
+                                                : (assignment.type ==
+                                                "discussion")
+                                                ? const Icon(
+                                                Icons.message_rounded)
+                                                : const Icon(
+                                                Icons.assignment_rounded),
+                                            contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 16.0,
+                                                vertical: 4.0),
+                                          )
+                                      )
+                                  );
+                                }
+                              } else{
+                                return Container();
                               }
                             },
                           ),
@@ -600,13 +742,23 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                   position: _slideInAnimation,
                   child: Expanded(
                     child: Center(
-                        child: dismissedAssignments.isEmpty ? const Text("No dismissed assignments")
+                        child: dismissedAssignments.isEmpty || (dismissedAssignments.length == 1 && dismissedAssignments[0] == "") ?
+                        const Text("No dismissed assignments")
                         : ListView.builder(
                           itemCount: dismissedAssignments.length,
                           itemBuilder: (BuildContext context, int dismissedIndex){
                             String assignment = dismissedAssignments[dismissedIndex];
-                            if(assignment.isNotEmpty) {
-                                  return Card(
+                            if(assignment.trim().isNotEmpty) {
+                                  return Dismissible(
+                                    key: Key(assignment),
+                                    direction: DismissDirection.endToStart,
+                                    onDismissed: (direction) {
+                                        setState((){
+                                          dismissedAssignments.remove(assignment);
+                                          hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                        });
+                                    },
+                                    child: Card(
                                     color: const Color.fromARGB(
                                         200, 244, 244, 244),
                                     child: ListTile(
@@ -620,7 +772,11 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                           const EdgeInsets.symmetric(
                                               horizontal: 16.0,
                                               vertical: 4.0),
-                                    ));
+                                    )
+                                  )
+                                 );
+                                } else{
+                                  return Container();
                                 }
                               }
                         )
