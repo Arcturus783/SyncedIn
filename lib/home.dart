@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 //this class manages our library storing data like course names and IDs
 class HiveBoxManager{
@@ -482,8 +483,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 child: Text(
                     "Hello $name!",
                     textAlign: TextAlign.left,
-                    style: const TextStyle(
-                      fontSize: 30,
+                    style: GoogleFonts.redHatDisplay(
+                      textStyle: const TextStyle(fontSize: 33, fontWeight: FontWeight.w700),
                     )
                 ),
               ),
@@ -569,15 +570,16 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                       direction: DismissDirection.endToStart,
                                       onDismissed: (direction) {
                                         setState(() {
-                                          currentMonthAssignments.removeAt(
-                                              index); //remove from active list
-                                          assignments[courseTitle]?.removeAt(
-                                              index); //remove from assignments for the course list (??)
-                                          dismissedAssignments.add(
-                                              assignment.title);
-                                          hiveManager.box.put(
-                                              "dismissedAssignments",
-                                              dismissedAssignments);
+                                          currentMonthAssignments.removeAt(index);
+                                          // Find the actual index in the full assignments list
+                                          final fullListIndex = assignments[courseTitle]?.indexWhere(
+                                                  (a) => a.title == assignment.title
+                                          );
+                                          if (fullListIndex != null && fullListIndex != -1) {
+                                            assignments[courseTitle]?.removeAt(fullListIndex);
+                                          }
+                                          dismissedAssignments.add(assignment.title);
+                                          hiveManager.box.put("dismissedAssignments", dismissedAssignments);
                                         });
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -588,17 +590,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                               label: 'UNDO',
                                               onPressed: () {
                                                 setState(() {
-                                                  currentMonthAssignments
-                                                      .insert(
-                                                      index, assignment);
-                                                  assignments[courseTitle]
-                                                      ?.insert(
-                                                      index, assignment);
-                                                  dismissedAssignments.remove(
-                                                      assignment.title);
-                                                  hiveManager.box.put(
-                                                      "dismissedAssignments",
-                                                      dismissedAssignments);
+                                                  assignments[courseTitle]?.add(assignment);  // Just add to the end
+                                                  dismissedAssignments.remove(assignment.title);
+                                                  hiveManager.box.put("dismissedAssignments", dismissedAssignments);
                                                 });
                                               },
                                             ),
@@ -640,15 +634,16 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                   direction: DismissDirection.endToStart,
                                   onDismissed: (direction) {
                                     setState(() {
-                                      currentMonthAssignments.removeAt(
-                                          index); //remove from active list
-                                      assignments[courseTitle]?.removeAt(
-                                          index); //remove from assignments for the course list (??)
-                                      dismissedAssignments.add(
-                                          assignment.title);
-                                      hiveManager.box.put(
-                                          "dismissedAssignments",
-                                          dismissedAssignments);
+                                      currentMonthAssignments.removeAt(index);
+                                      // Find the actual index in the full assignments list
+                                      final fullListIndex = assignments[courseTitle]?.indexWhere(
+                                              (a) => a.title == assignment.title
+                                      );
+                                      if (fullListIndex != null && fullListIndex != -1) {
+                                        assignments[courseTitle]?.removeAt(fullListIndex);
+                                      }
+                                      dismissedAssignments.add(assignment.title);
+                                      hiveManager.box.put("dismissedAssignments", dismissedAssignments);
                                     });
                                     ScaffoldMessenger.of(context)
                                         .showSnackBar(
@@ -659,8 +654,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                           label: 'UNDO',
                                           onPressed: () {
                                             setState(() {
-                                              currentMonthAssignments.insert(index, assignment);
-                                              assignments[courseTitle]?.insert(index, assignment);
+                                              assignments[courseTitle]?.add(assignment);  // Just add to the end
                                               dismissedAssignments.remove(assignment.title);
                                               hiveManager.box.put("dismissedAssignments", dismissedAssignments);
                                             });
@@ -753,10 +747,36 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                     key: Key(assignment),
                                     direction: DismissDirection.endToStart,
                                     onDismissed: (direction) {
+                                      /*
                                         setState((){
                                           dismissedAssignments.remove(assignment);
                                           hiveManager.box.put("dismissedAssignments", dismissedAssignments);
                                         });
+                                       */
+
+                                      Assignment? originalAssignment;
+                                      String? originalCourse;
+
+                                      for (var course in assignments.keys) {
+                                        var courseAssignments = assignments[course];
+                                        if (courseAssignments != null) {
+                                          for (var a in courseAssignments) {
+                                            if (a.title == assignment) {
+                                              originalAssignment = a;
+                                              originalCourse = course;
+                                              break;
+                                            }
+                                          }
+                                          if (originalAssignment != null) break;
+                                        }
+                                      }
+                                      setState((){
+                                        dismissedAssignments.remove(assignment);
+                                        if(originalCourse != null && originalAssignment != null){
+                                          assignments[originalCourse]?.add(originalAssignment);
+                                        }
+                                        hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                      });
                                     },
                                     child: Card(
                                     color: const Color.fromARGB(
