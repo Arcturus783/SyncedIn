@@ -113,6 +113,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
   bool showHiddenAssignments = false;
   List<String> dismissedAssignments = [];
+  List<Assignment> disA = [];
   List<Assignment> assignmentsPerDay = [];
   Map<String, List<Assignment>> assignments = {};
 
@@ -185,7 +186,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           name = hiveManager.box.get("name", defaultValue: "");
         });
         setState((){
-          dismissedAssignments = hiveManager.box.get("dismissedAssignments", defaultValue: [""]);
+          dismissedAssignments = hiveManager.box.get("dismissedAssignments", defaultValue: [""]) ?? [""];
+          disA = hiveManager.box.get("disA", defaultValue: List<Assignment>.empty());
         });
         setState((){
           currentColor = Color.fromARGB(195, hiveManager.box.get("redColor", defaultValue: 230), hiveManager.box.get("blueColor", defaultValue: 135), hiveManager.box.get("greenColor", defaultValue: 245));
@@ -194,6 +196,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         viewAssignments();
       } catch(e){
         print("Error initializing data: $e");
+        FlutterNativeSplash.remove();
       }
   }
 
@@ -460,6 +463,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       case 1:
         return _homeScreen();
       case 2:
+        return _eodCheckInScreen();
+      case 3:
         return _settingsScreen();
       default:
         return _homeScreen();
@@ -472,6 +477,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   ----------------------------------------------------------------------------
    */
 
+
+  //work on forcing a rebuild of list builder when adding back in an assignment
   Widget _homeScreen() {
     return Column(
         children: <Widget>[
@@ -560,7 +567,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                             itemCount: currentMonthAssignments.length,
                             itemBuilder: (BuildContext context, int index) {
                               Assignment assignment = currentMonthAssignments[index];
-                              if(!dismissedAssignments.contains(assignment.title)){
+                              if(!disA.contains(assignment)/*!dismissedAssignments.contains(assignment.title)*/){
                                 if (assignment.dueDate
                                     .trim()
                                     .isEmpty) {
@@ -578,7 +585,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                           if (fullListIndex != null && fullListIndex != -1) {
                                             assignments[courseTitle]?.removeAt(fullListIndex);
                                           }
-                                          dismissedAssignments.add(assignment.title);
+                                          //dismissedAssignments.add(assignment.title);
+                                          disA.add(assignment);
                                           hiveManager.box.put("dismissedAssignments", dismissedAssignments);
                                         });
                                         ScaffoldMessenger.of(context)
@@ -591,8 +599,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                               onPressed: () {
                                                 setState(() {
                                                   assignments[courseTitle]?.add(assignment);  // Just add to the end
-                                                  dismissedAssignments.remove(assignment.title);
-                                                  hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                                  //dismissedAssignments.remove(assignment.title);
+                                                  disA.remove(assignment);
+                                                  //hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                                  disA.add(assignment);
                                                 });
                                               },
                                             ),
@@ -642,8 +652,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                       if (fullListIndex != null && fullListIndex != -1) {
                                         assignments[courseTitle]?.removeAt(fullListIndex);
                                       }
-                                      dismissedAssignments.add(assignment.title);
-                                      hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                      //dismissedAssignments.add(assignment.title);
+                                      disA.add(assignment);
+                                      //hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                      hiveManager.box.put("disA", disA);
                                     });
                                     ScaffoldMessenger.of(context)
                                         .showSnackBar(
@@ -655,8 +667,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                           onPressed: () {
                                             setState(() {
                                               assignments[courseTitle]?.add(assignment);  // Just add to the end
-                                              dismissedAssignments.remove(assignment.title);
-                                              hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                              disA.remove(assignment);
+                                              //dismissedAssignments.remove(assignment.title);
+                                              //hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                              hiveManager.box.put("disA", disA);
                                             });
                                           },
                                         ),
@@ -731,20 +745,20 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 );
               },
             ),
-                ),
+          ),
                 SlideTransition(
                   position: _slideInAnimation,
-                  child: Expanded(
                     child: Center(
-                        child: dismissedAssignments.isEmpty || (dismissedAssignments.length == 1 && dismissedAssignments[0] == "") ?
+                        child: /* dismissedAssignments.isEmpty || (dismissedAssignments.length == 1 && dismissedAssignments[0] == "") */ (disA.isEmpty || (disA.length == 1 && disA[0].title == ""))?
                         const Text("No dismissed assignments")
                         : ListView.builder(
                           itemCount: dismissedAssignments.length,
                           itemBuilder: (BuildContext context, int dismissedIndex){
-                            String assignment = dismissedAssignments[dismissedIndex];
-                            if(assignment.trim().isNotEmpty) {
+                            //String assignment = dismissedAssignments[dismissedIndex];
+                            Assignment as = disA[dismissedIndex];
+                            if(as.title.trim().isNotEmpty) {
                                   return Dismissible(
-                                    key: Key(assignment),
+                                    key: Key(as.title),
                                     direction: DismissDirection.endToStart,
                                     onDismissed: (direction) {
                                       /*
@@ -761,7 +775,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                         var courseAssignments = assignments[course];
                                         if (courseAssignments != null) {
                                           for (var a in courseAssignments) {
-                                            if (a.title == assignment) {
+                                            if (a.title == as.title) {
                                               originalAssignment = a;
                                               originalCourse = course;
                                               break;
@@ -771,11 +785,13 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                         }
                                       }
                                       setState((){
-                                        dismissedAssignments.remove(assignment);
+                                        //dismissedAssignments.remove(assignment);
+                                        disA.remove(as);
                                         if(originalCourse != null && originalAssignment != null){
                                           assignments[originalCourse]?.add(originalAssignment);
                                         }
-                                        hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                        //hiveManager.box.put("dismissedAssignments", dismissedAssignments);
+                                        hiveManager.box.put("disA", disA);
                                       });
                                     },
                                     child: Card(
@@ -783,7 +799,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                         200, 244, 244, 244),
                                     child: ListTile(
                                       title: Text(
-                                        assignment,
+                                        //assignment,
+                                        as.title,
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
                                       ),
@@ -801,7 +818,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                               }
                         )
                     )
-                  )
                 )
               ]
           )
@@ -809,6 +825,19 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         ],
       );
   }
+
+  /*
+  ----------------------------------------------------------------------------
+  ---------------------------EoD Check In Screen UI---------------------------
+  ----------------------------------------------------------------------------
+  */
+
+  Widget _eodCheckInScreen(){
+    return Center(
+
+    );
+  }
+
 
   /*
   ----------------------------------------------------------------------------
@@ -858,6 +887,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   //examples: https://github.com/aleksanderwozniak/table_calendar/tree/master/example/lib/pages
   Widget _calendarScreen(){
     CalendarFormat calendarFormat = CalendarFormat.month;
+    _selectedDay = DateTime.now();
+    _getEventsToday(_selectedDay);
     return Column(
         children: <Widget>[
           TableCalendar(
@@ -895,7 +926,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
               markerSize: 7, //size of an event dot
               markersMaxCount: 3, //default is 4, looks crowded if they have 4+ assignments
               todayDecoration: BoxDecoration(
-                color: currentColor,
+                color: Color.fromARGB(125, currentColor.red, currentColor.green, currentColor.blue),
                 shape: BoxShape.circle,
               ),
               selectedDecoration: BoxDecoration(
@@ -980,9 +1011,13 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
               label: "Assignments",
             ),
             NavigationDestination(
-              icon: Icon(Icons.settings_applications_rounded),
-              label: "Settings",
+              icon: Icon(Icons.mode_night_rounded),
+              label: "End of Day",
             ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_rounded),
+              label: "Settings",
+            )
           ]
       ),
       body: _chooseScreen(currentIndex),
