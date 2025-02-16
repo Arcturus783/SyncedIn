@@ -123,7 +123,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   DateTime _selectedDay = DateTime.now();
 
   //keep transparency 195 for consistency - mess around with everything else
-  List<Color> colorOptions = [const Color.fromARGB(195, 239, 23, 23), const Color.fromARGB(195, 225, 50, 25),
+  List<Color> colorOptions = [const Color.fromARGB(195, 239, 23, 23), const Color.fromARGB(125, 225, 50, 25),
     const Color.fromARGB(195, 220, 210, 60), const Color.fromARGB(195, 230, 135, 245)];
 
   late AnimationController _aAnimController;
@@ -311,55 +311,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       }
 
       await Future.wait(fetchFutures);
-      /*
-      for (int x = 0; x < ids.length; x++) {
-        int start = 0;
-        const int limit = 20;
-        bool hasMore = true;
-        List<Assignment> courseAssignments = [];
-        var courseName = hiveManager.box.get("courses")[x];
-
-        // Process all assignments for this course
-        while (hasMore) {
-          final response = await authedClient.get(
-              Uri.parse('https://api.schoology.com/v1/sections/${ids[x]}/assignments?start=$start&limit=$limit')
-          );
-
-          if (response.statusCode != 200) {
-            throw Exception('Failed to fetch assignments: ${response.statusCode}');
-          }
-
-          Map<String, dynamic> data = jsonDecode(response.body);
-          List<dynamic> assignments = data['assignment'];
-
-          if (assignments.isEmpty) {
-            hasMore = false;
-          } else {
-            for(var assignment in assignments){
-              courseAssignments.add(Assignment(
-                title: assignment["title"],
-                dueDate: assignment['due'],
-                type: assignment['type'],
-              ));
-            }
-            /*
-            setState(() {
-              allTitles.addAll(assignments.map<String>((assignment) => assignment['title'] as String));
-              allDates.addAll(assignments.map<String>((assignment) => assignment['due'] as String));
-              allDueToday.addAll(assignments.map<bool>((assignment) => (DateTime.parse(assignment['due']).day == today.day) ? true : false));
-            });
-             */
-            start += limit;
-          }
-          //delay prevents rate limiting
-          await Future.delayed(const Duration(milliseconds: 20));
-        }
-       setState((){
-         assignments[courseName] = courseAssignments;
-       });
-      }
-
-       */
     } catch(e){
       print("Something went wrong: Error $e");
     }
@@ -456,14 +407,14 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   }
 
   //just helps organize our code
-  Widget _chooseScreen(int num){
+  Widget _chooseScreen(int num, double width, double height){
     switch(num){
       case 0:
         return _calendarScreen();
       case 1:
         return _homeScreen();
       case 2:
-        return _eodCheckInScreen();
+        return _dashboard(width, height);
       case 3:
         return _settingsScreen();
       default:
@@ -828,13 +779,123 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
   /*
   ----------------------------------------------------------------------------
-  ---------------------------EoD Check In Screen UI---------------------------
+  -----------------------New Home (Dashboard) Screen UI-----------------------
   ----------------------------------------------------------------------------
   */
 
-  Widget _eodCheckInScreen(){
+  Widget _dashboard(double width, double height){
     return Center(
-
+      child: Column(
+        children: <Widget>[
+          const SizedBox(height: 30),
+          Align(
+            alignment: const Alignment(-0.8, -0.8),
+              child: RichText(
+                  text: TextSpan(
+                    text: "Hello ",
+                    style: GoogleFonts.redHatDisplay(
+                      textStyle: const TextStyle(color: Color.fromARGB(255, 70, 70, 70), fontSize: 33, fontWeight: FontWeight.w700),
+                    ),
+                    children: <TextSpan>[
+                      TextSpan(text: "$name!", style: TextStyle(color: currentColor)),
+                    ],
+                  )
+              ),
+          ),
+          const SizedBox(height: 50),
+          Container(
+            width: width * 0.9,
+            height: height * 0.12,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.8),
+                  offset: const Offset(-6.0, -6.0),
+                  blurRadius: 16.0,
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  offset: const Offset(6.0, 6.0),
+                  blurRadius: 16.0,
+                ),
+              ],
+              color: const Color.fromARGB(255, 242, 241, 241),
+            ),
+          ),
+          const SizedBox(height: 30),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              Container(
+                height: height * 0.35,
+                width: width * 0.4,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.8),
+                      offset: const Offset(-6.0, -6.0),
+                      blurRadius: 16.0,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      offset: const Offset(6.0, 6.0),
+                      blurRadius: 16.0,
+                    ),
+                  ],
+                  color: const Color.fromARGB(255, 242, 241, 241),
+                )
+              ),
+                Column(
+                  children: <Widget> [
+                    Container(
+                      height: height * 0.15,
+                      width: width * 0.4,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withOpacity(0.8),
+                            offset: const Offset(-6.0, -6.0),
+                            blurRadius: 16.0,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            offset: const Offset(6.0, 6.0),
+                            blurRadius: 16.0,
+                          ),
+                        ],
+                        color: const Color.fromARGB(255, 242, 241, 241),
+                      )
+                    ),
+                    SizedBox(height: height * 0.05),
+                    Container(
+                        height: height * 0.15,
+                        width: width * 0.4,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16.0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.8),
+                              offset: const Offset(-6.0, -6.0),
+                              blurRadius: 16.0,
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              offset: const Offset(6.0, 6.0),
+                              blurRadius: 16.0,
+                            ),
+                          ],
+                          color: const Color.fromARGB(255, 242, 241, 241),
+                        )
+                    )
+              ]
+            )
+            ]
+          )
+        ]
+      )
     );
   }
 
@@ -976,115 +1037,53 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    double width = MediaQuery.of(context).size.width;
+    double height = MediaQuery.of(context).size.height;
     return Scaffold(
-      backgroundColor: const Color.fromARGB(248, 253, 253, 253),
-      appBar: AppBar(
-        //this puts it at the left of the AppBar. Swap for a logo later instead of icon.
-        leading: const Icon(
-          Icons.logo_dev_rounded,
-          size: 40,
+        backgroundColor: const Color(0xFFEFEEEE),
+        appBar: AppBar(
+          //this puts it at the left of the AppBar. Swap for a logo later instead of icon.
+          leading: const Icon(
+            Icons.logo_dev_rounded,
+            size: 40,
+          ),
+          backgroundColor: Colors.transparent,
+          title: const Text(
+              "App Name",
+              style: TextStyle(
+                fontSize: 20,
+              )
+          ),
         ),
-        backgroundColor: const Color.fromARGB(180, 225, 225, 225),
-        title: const Text(
-            "App Name",
-            style: TextStyle(
-              fontSize: 20,
-            )
+        bottomNavigationBar: NavigationBar(
+            backgroundColor: const Color.fromARGB(150, 230, 230, 230),
+            onDestinationSelected: (int index) {
+              setState((){
+                currentIndex = index;
+              });
+            },
+            indicatorColor: currentColor,//const Color.fromARGB(210, 175, 20, 210),
+            selectedIndex: currentIndex,
+            destinations: const <Widget>[
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month_rounded),
+                label: "Calendar", //temporary label, can be removed
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.assignment_turned_in_rounded),
+                label: "Assignments",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.home_rounded),
+                label: "Dashboard",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_rounded),
+                label: "Settings",
+              )
+            ]
         ),
-      ),
-      bottomNavigationBar: NavigationBar(
-          backgroundColor: const Color.fromARGB(150, 230, 230, 230),
-          onDestinationSelected: (int index) {
-            setState((){
-              currentIndex = index;
-            });
-          },
-          indicatorColor: currentColor,//const Color.fromARGB(210, 175, 20, 210),
-          selectedIndex: currentIndex,
-          destinations: const <Widget>[
-            NavigationDestination(
-              icon: Icon(Icons.calendar_month_rounded),
-              label: "Calendar", //temporary label, can be removed
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.assignment_turned_in_rounded),
-              label: "Assignments",
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.mode_night_rounded),
-              label: "End of Day",
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_rounded),
-              label: "Settings",
-            )
-          ]
-      ),
-      body: _chooseScreen(currentIndex),
-    );
+        body: _chooseScreen(currentIndex, width, height),
+      );
   }
 }
-
-//this is the monstrosity that displays assignments - just a copy if it's needed (*cough* if Claude destroys the normal version)
-/*
-return Center(
-        child: Column(
-          children: <Widget>[
-              const SizedBox(height: 60),
-              const Text("Calendar Screen - for now just loads all assignments"),
-            Expanded(
-              child: assignments.isEmpty
-                  ? const Center(child: Text("No assignments to display"))
-                  : ListView.builder(
-                itemCount: assignments.length,
-                itemBuilder: (BuildContext context, int courseIndex) {
-                  String courseTitle = assignments.keys.elementAt(courseIndex);
-                  List<Assignment> courseAssignments = assignments[courseTitle] ?? [];
-
-                  return Card(
-                    margin: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            courseTitle,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                        if (courseAssignments.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: Text("No assignments for this course")),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: courseAssignments.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              Assignment assignment = courseAssignments[index];
-                              return Tooltip(
-                                  message: assignment.dueDate,
-                                  child: ListTile(
-                                    title: Text(assignment.title),
-                                    subtitle:
-                                    Text("Due: ${assignment.dueDate}"),
-                                    contentPadding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 16.0, vertical: 4.0),
-                                  )
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ]
-        )
-    );
- */
