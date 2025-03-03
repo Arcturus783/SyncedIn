@@ -1,36 +1,14 @@
-//import 'dart:async';
+import '../class_essentials/assignment.dart';
+import '../class_essentials/hive.dart';
+import '../widgets/main_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:oauth1/oauth1.dart' as oauth1;
 import 'main.dart' as main_screen;
 import 'dart:convert';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-//this class manages our library storing data like course names and IDs
-class HiveBoxManager {
-  static final HiveBoxManager _instance = HiveBoxManager._internal();
-  late final Box<dynamic> box;
-  bool _initialized = false;
-
-  factory HiveBoxManager() {
-    return _instance;
-  }
-
-  HiveBoxManager._internal();
-
-  Future<void> init() async {
-    if (!_initialized) {
-      await Hive.initFlutter();
-      box = await Hive.openBox("userData");
-      _initialized = true;
-    }
-  }
-
-  bool get isInitialized => _initialized;
-}
 
 final hiveManager = HiveBoxManager();
 
@@ -92,17 +70,6 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class Assignment {
-  final String title;
-  final String dueDate;
-  final String type;
-
-  Assignment({
-    required this.title,
-    required this.dueDate,
-    required this.type,
-  });
-}
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
@@ -219,7 +186,7 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   //this initializes the display name, course names, and course IDs so we can get assignments for each course
-  //ideally doesn't run because it gets it from storage, but if value isn't found then this will run
+//ideally doesn't run because it gets it from storage, but if value isn't found then this will run
   Future<void> getCourses() async {
     print("Getting courses...");
     try {
@@ -232,7 +199,7 @@ class _MyHomePageState extends State<MyHomePage>
       const String consK = "4228fad5be57913f4a288c71007cce38066a6a9c6";
       const String consS = "f16aa4e412861b3be29314970e2740ba";
       final oauth1.ClientCredentials clientCredentials =
-          oauth1.ClientCredentials(consK, consS);
+      oauth1.ClientCredentials(consK, consS);
       final authedClient = oauth1.Client(platform.signatureMethod,
           clientCredentials, oauth1.Credentials(oToken, oSecret));
       final uidResponse = await authedClient
@@ -247,9 +214,9 @@ class _MyHomePageState extends State<MyHomePage>
       Map<String, dynamic> jsonNameResponse = jsonDecode(nameResponse.body);
       List<dynamic> sections = jsonResponse['section'];
       List<dynamic> courseTitles =
-          sections.map((section) => section['course_title']).toList();
+      sections.map((section) => section['course_title']).toList();
       List<dynamic> courseIds =
-          sections.map((section) => section['id']).toList();
+      sections.map((section) => section['id']).toList();
       if (courseTitles.isEmpty || courseTitles.isEmpty || sections.isEmpty)
         print("Something here is empty...?");
       await hiveManager.box.put("courses", courseTitles);
@@ -384,6 +351,9 @@ class _MyHomePageState extends State<MyHomePage>
     if (assignments.isNotEmpty) {
       for (List<Assignment> courseAssignments in assignments.values) {
         for (Assignment a in courseAssignments) {
+          if(a.dueDate.trim().isEmpty){
+            continue;
+          }
           try {
             DateTime dt = DateTime.parse(a.dueDate.trim().split(" ")[0]);
             if (dt.day == day.day &&
@@ -392,7 +362,7 @@ class _MyHomePageState extends State<MyHomePage>
               aTD.add(a);
             }
           } catch (e) {
-            print("Error displaying events for day $day: $e");
+            print("Error displaying events for day $day and assignment ${a.dueDate}: $e");
           }
         }
       }
@@ -457,13 +427,25 @@ class _MyHomePageState extends State<MyHomePage>
   Widget _chooseScreen(int num, double width, double height) {
     switch (num) {
       case 0:
-        return _calendarScreen();
+        return CalendarScreen(
+          getAssignmentsForDay: getAssignmentsForDay,
+          getEventsToday: _getEventsToday,
+          assignmentsPerDay: assignmentsPerDay,
+          focusedDay: _focusedDay,
+          currentColor: currentColor,
+        );
+        //return _calendarScreen();
       case 1:
         return _homeScreen();
       case 2:
         return _dashboard(width, height);
       case 3:
-        return _settingsScreen();
+        return SettingsScreen(
+          logout: logout,
+          currentColor: currentColor,
+          changeColors: changeColors,
+          colorOptions: colorOptions,
+        );
       default:
         return _homeScreen();
     }
@@ -1027,135 +1009,6 @@ class _MyHomePageState extends State<MyHomePage>
     ]));
   }
 
-  /*
-  ----------------------------------------------------------------------------
-  -----------------------------Settings Screen UI-----------------------------
-  ----------------------------------------------------------------------------
-   */
-
-  Widget _settingsScreen() {
-    return Center(
-        child: Column(children: [
-      const SizedBox(
-        height: 100,
-      ),
-      const Text("Settings (button below is to logout)"),
-      IconButton(
-        icon: const Icon(Icons.logout_rounded),
-        onPressed: () {
-          logout(context);
-        },
-      ),
-      const Text(
-        "Color Picker (saves color choice); Add like 8-16 choices",
-      ),
-      const SizedBox(height: 50),
-      Expanded(
-          child: BlockPicker(
-        pickerColor: currentColor,
-        availableColors: colorOptions,
-        onColorChanged: changeColors,
-      ))
-    ]));
-  }
-
-  /*
-  ----------------------------------------------------------------------------
-  -----------------------------Calendar Screen UI-----------------------------
-  ----------------------------------------------------------------------------
-   */
-  //documentation for calendar package
-  //https://pub.dev/documentation/table_calendar/latest/
-  //examples: https://github.com/aleksanderwozniak/table_calendar/tree/master/example/lib/pages
-  Widget _calendarScreen() {
-    CalendarFormat calendarFormat = CalendarFormat.month;
-    _selectedDay = DateTime.now();
-    _getEventsToday(_selectedDay);
-    return Column(children: <Widget>[
-      TableCalendar(
-        availableCalendarFormats: const {CalendarFormat.month: "Month"},
-        headerStyle: const HeaderStyle(
-            titleCentered: true,
-            titleTextStyle: TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
-            )),
-        firstDay: DateTime.utc(2025, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
-        focusedDay: _focusedDay,
-        eventLoader: (day) {
-          return _getEventsToday(day);
-        },
-        selectedDayPredicate: (day) {
-          return isSameDay(_selectedDay, day);
-        },
-        onDaySelected: (selectedDay, focusedDay) {
-          getAssignmentsForDay(selectedDay);
-          setState(() {
-            _focusedDay = focusedDay;
-            _selectedDay = selectedDay;
-          });
-        },
-        calendarFormat: calendarFormat,
-        onFormatChanged: (format) {
-          setState(() {
-            calendarFormat = format;
-          });
-        },
-        calendarStyle: CalendarStyle(
-          //you can specify a font too for the calendar text here
-          defaultTextStyle:
-              const TextStyle(color: Color.fromARGB(255, 5, 5, 5)),
-          markerSize: 7,
-          //size of an event dot
-          markersMaxCount: 3,
-          //default is 4, looks crowded if they have 4+ assignments
-          todayDecoration: BoxDecoration(
-            color: Color.fromARGB(
-                125, currentColor.red, currentColor.green, currentColor.blue),
-            shape: BoxShape.circle,
-          ),
-          selectedDecoration: BoxDecoration(
-            color: currentColor,
-            shape: BoxShape.circle,
-          ),
-        ),
-      ),
-      const SizedBox(height: 30),
-      Expanded(
-          child: ListView.builder(
-              itemCount: assignmentsPerDay.length,
-              itemBuilder: (BuildContext context, int index) {
-                //return Text("1. ${assignmentsPerDay[index].title}");
-                Assignment assignment = assignmentsPerDay[index];
-                return Card(
-                    color: const Color.fromARGB(225, 252, 252, 252),
-                    child: ListTile(
-                      title: Text(
-                        assignment.title,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      subtitle: Text(
-                          "Due: ${assignment.dueDate.split(" ")[0]}\n${assignment.dueDate.split(" ")[1]}"),
-                      trailing: (assignment.type == "assessment")
-                          ? const Tooltip(
-                              message: "Assessment",
-                              child: Icon(Icons.assessment_rounded),
-                            )
-                          : (assignment.type == "discussion")
-                              ? const Tooltip(
-                                  message: "Discussion",
-                                  child: Icon(Icons.message_rounded))
-                              : const Tooltip(
-                                  message: "Assignment",
-                                  child: Icon(Icons.assignment_rounded)),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 4.0),
-                    ));
-              }))
-    ]);
-  }
 
   /*
   ----------------------------------------------------------------------------
