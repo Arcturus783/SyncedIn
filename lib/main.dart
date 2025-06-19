@@ -6,37 +6,35 @@
   import 'package:url_launcher/url_launcher.dart';
   import 'package:flutter_secure_storage/flutter_secure_storage.dart';
   import 'package:flutter_native_splash/flutter_native_splash.dart';
+  import 'package:myapp/class_essentials/theme.dart';
+  import 'package:flutter_riverpod/flutter_riverpod.dart';
 
   const storage = FlutterSecureStorage();
-
-  /*
-  If you have no idea how to log in:
-
-  Click the button in the bottom right corner - it'll open schoology in the emulator or
-  you can use the link printed to the console since that's faster.
-  Log in to schoology.
-  Go back to the emulator and press the other button.
-
-  goofy ahh process so we'll have to neaten it out and update ui
-   */
 
   void main() async {
     WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
     String? token = await storage.read(key: 'oauth_token');
     String? secret = await storage.read(key: 'oauth_secret');
     if (secret == null || token == null){
       FlutterNativeSplash.remove();
-      runApp(const MyApp());
+      runApp(
+        ProviderScope(
+          child: MyApp()
+        )
+      );
     } else{
       runApp(
-          MaterialApp(
+        ProviderScope(
+          child: MaterialApp(
             debugShowCheckedModeBanner: false,
             home: home.Central(
               oauthToken: token,
               oauthSecret: secret,
             ),
           )
+        )
       );
     }
   }
@@ -54,11 +52,7 @@
       return MaterialApp(
         title: 'Schoology API Test',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color.fromARGB(255, 8, 16, 137)),
-          useMaterial3: true,
-        ),
+        theme: basic.lightTheme,
         home: const MyHomePage(),
       );
     }
@@ -233,7 +227,6 @@
             color: Color.fromARGB(255, 175, 20, 210),
           ),
         ),
-  
         // This trailing comma makes auto-formatting nicer for build methods.
       );
     }

@@ -1,11 +1,19 @@
-class Assignment {
+import 'package:hive/hive.dart';
+
+part 'assignment.g.dart';
+
+@HiveType(typeId: 0)
+class Assignment extends HiveObject{
+  @HiveField(0)
   final String title;
-  final String dueDate;
+  @HiveField(1)
+  final DateTime? dueDate;
+  @HiveField(2)
   final String type;
 
   Assignment({
     required this.title,
-    required this.dueDate,
     required this.type,
+    this.dueDate,
   });
 }

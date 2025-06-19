@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:myapp/class_essentials/assignment.dart';
 
 //this class manages our library storing data like course names and IDs
 class HiveBoxManager {
@@ -15,6 +16,7 @@ class HiveBoxManager {
   Future<void> init() async {
     if (!_initialized) {
       await Hive.initFlutter();
+      Hive.registerAdapter(AssignmentAdapter());
       box = await Hive.openBox("userData");
       _initialized = true;
     }
