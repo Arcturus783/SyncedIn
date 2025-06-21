@@ -13,13 +13,11 @@ class RateLimitManager {
     final now = DateTime.now();
     final timeSinceReset = now.difference(_lastReset).inSeconds;
 
-    // Reset credits if enough time has passed
     if (timeSinceReset >= _resetIntervalSeconds) {
       _remainingCredits = _maxCredits;
       _lastReset = now;
     }
 
-    // If no credits available, wait for reset
     if (_remainingCredits <= 0) {
       final waitTime = _resetIntervalSeconds - timeSinceReset;
       if (waitTime > 0) {
@@ -50,31 +48,108 @@ class AssignmentManager {
 
   AssignmentManager(this.hiveManager, this.oToken, this.oSecret);
 
+  // Original course-based storage for reference
   Map<String, List<Assignment>> assignments = {};
+
+  // NEW: Date-sorted list for efficient lookups
+  List<Assignment> _sortedAssignments = [];
+
+  // Index mapping for quick course-based access
+  Map<String, List<int>> _courseIndexes = {};
+
   int numCourses = 0;
 
   // Cache expiration settings
   static const int _cacheExpirationHours = 2;
-  static const int _assignmentDayLimit = 90; // Only fetch assignments due within 90 days
+  static const int _assignmentDayLimit = 90;
+
+  // Data retention settings
+  static const int _oldAssignmentThresholdDays = 30; // Keep assignments from last 30 days
+  static const int _futureAssignmentLimitDays = 365; // Keep assignments up to 1 year ahead
 
   void loadAssignments() {
     Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments", defaultValue: {});
     assignments = _convertToTypedAssignments(rawAssignments);
     DateTime? lastFetch = hiveManager.box.get("lastAssignmentFetch");
 
-    // Check if we need to refresh assignments
+    // Build optimized data structures
+    _buildOptimizedStructures();
+
     bool shouldRefresh = _shouldRefreshAssignments(rawAssignments, lastFetch);
 
     if (shouldRefresh) {
       print("Cache expired or empty. Fetching fresh assignments...");
       getAssignments();
     } else {
-      print("Using cached assignments (${assignments.length} courses)");
+      print("Using cached assignments (${assignments.length} courses, ${_sortedAssignments.length} total assignments)");
     }
   }
 
+  /// Build the optimized data structures for fast lookups
+  void _buildOptimizedStructures() {
+    _sortedAssignments.clear();
+    _courseIndexes.clear();
+
+    // Define relevance window
+    DateTime now = DateTime.now();
+    DateTime oldThreshold = now.subtract(Duration(days: _oldAssignmentThresholdDays));
+    DateTime futureThreshold = now.add(Duration(days: _futureAssignmentLimitDays));
+
+    // Collect relevant assignments with course information
+    List<_AssignmentWithCourse> allWithCourse = [];
+    int totalAssignments = 0;
+    int filteredAssignments = 0;
+
+    assignments.forEach((courseName, courseAssignments) {
+      totalAssignments += courseAssignments.length;
+
+      for (int i = 0; i < courseAssignments.length; i++) {
+        Assignment assignment = courseAssignments[i];
+
+        // Keep assignment if:
+        // 1. No due date (important assignments)
+        // 2. Due within our retention window
+        // 3. Due in reasonable future
+        bool shouldKeep = assignment.dueDate == null ||
+            (assignment.dueDate!.isAfter(oldThreshold) &&
+                assignment.dueDate!.isBefore(futureThreshold));
+
+        if (shouldKeep) {
+          allWithCourse.add(_AssignmentWithCourse(
+            assignment: assignment,
+            courseName: courseName,
+          ));
+          filteredAssignments++;
+        }
+      }
+    });
+
+    // Sort by due date (null dates go to end)
+    allWithCourse.sort((a, b) {
+      if (a.assignment.dueDate == null && b.assignment.dueDate == null) return 0;
+      if (a.assignment.dueDate == null) return 1;
+      if (b.assignment.dueDate == null) return -1;
+      return a.assignment.dueDate!.compareTo(b.assignment.dueDate!);
+    });
+
+    // Build sorted list and course indexes
+    for (int i = 0; i < allWithCourse.length; i++) {
+      final item = allWithCourse[i];
+      _sortedAssignments.add(item.assignment);
+
+      // Track indexes by course
+      _courseIndexes.putIfAbsent(item.courseName, () => []).add(i);
+    }
+
+    print("Built optimized structures: ${_sortedAssignments.length}/${totalAssignments} assignments " +
+        "kept (filtered ${totalAssignments - filteredAssignments} old/distant assignments)");
+
+    // Log memory usage estimate
+    double estimatedMB = (filteredAssignments * 0.5) / 1024; // Rough estimate: 0.5KB per assignment
+    print("Estimated memory usage: ${estimatedMB.toStringAsFixed(2)} MB");
+  }
+
   bool _shouldRefreshAssignments(Map<dynamic, dynamic> rawAssignments, DateTime? lastFetch) {
-    // Check if any course has assignments
     bool hasAnyAssignments = false;
     rawAssignments.forEach((key, value) {
       if (value is List && value.isNotEmpty) {
@@ -97,20 +172,17 @@ class AssignmentManager {
 
       print("Starting to fetch assignments for ${ids.length} courses...");
 
-      // Process courses sequentially to respect rate limits
       for (int i = 0; i < ids.length; i++) {
         print("Processing course ${i + 1}/${ids.length}: ${courses[i]}");
 
         try {
           await _fetchAssignments(ids[i], courses[i], authedClient);
 
-          // Add delay between courses to be extra safe with rate limits
           if (i < ids.length - 1) {
             await Future.delayed(Duration(milliseconds: 300));
           }
         } catch (e) {
           print("Failed to fetch assignments for ${courses[i]}: $e");
-          // Continue with other courses even if one fails
           continue;
         }
       }
@@ -119,18 +191,21 @@ class AssignmentManager {
       await hiveManager.box.put("assignments", assignments);
       await hiveManager.box.put("lastAssignmentFetch", DateTime.now());
 
+      // Rebuild optimized structures after fetching
+      _buildOptimizedStructures();
+
     } catch (e) {
       print("Critical error in getAssignments: $e");
       rethrow;
     }
   }
 
+  // EXISTING METHODS (getCourses, _fetchAssignments, etc.) remain the same...
   Future<void> getCourses() async {
     try {
       print("Fetching user courses...");
       final authedClient = _createAuthenticatedClient();
 
-      // Get user ID
       await RateLimitManager.checkAndWait();
       final uidResponse = await authedClient
           .get(Uri.parse('https://api.schoology.com/v1/app-user-info/api_uid'));
@@ -142,7 +217,6 @@ class AssignmentManager {
       Map<String, dynamic> uidJson = jsonDecode(uidResponse.body);
       dynamic uid = uidJson['api_uid'];
 
-      // Get user sections
       await RateLimitManager.checkAndWait();
       final response = await authedClient
           .get(Uri.parse('https://api.schoology.com/v1/users/$uid/sections'));
@@ -151,7 +225,6 @@ class AssignmentManager {
         throw Exception('Failed to get sections: ${response.statusCode}');
       }
 
-      // Get user name
       await RateLimitManager.checkAndWait();
       final nameResponse = await authedClient
           .get(Uri.parse('https://api.schoology.com/v1/users/$uid'));
@@ -160,7 +233,6 @@ class AssignmentManager {
         throw Exception('Failed to get user name: ${nameResponse.statusCode}');
       }
 
-      // Process responses
       Map<String, dynamic> jsonResponse = jsonDecode(response.body);
       Map<String, dynamic> jsonNameResponse = jsonDecode(nameResponse.body);
       List<dynamic> sections = jsonResponse['section'] ?? [];
@@ -193,16 +265,16 @@ class AssignmentManager {
     print("Fetching assignments for: $courseName");
 
     int start = 0;
-    const int limit = 10; // Reduced from 20 to use fewer credits
+    const int limit = 10;
     bool hasMore = true;
     List<Assignment> courseAssignments = [];
-    const int maxRetries = 3; // Reduced max retries
+    const int maxRetries = 3;
     DateTime cutoffDate = DateTime.now().add(Duration(days: _assignmentDayLimit));
 
     int totalFetched = 0;
     int relevantAssignments = 0;
 
-    while (hasMore && totalFetched < 200) { // Safety limit to prevent infinite loops
+    while (hasMore && totalFetched < 200) {
       int retries = 0;
       bool requestSuccessful = false;
 
@@ -224,14 +296,12 @@ class AssignmentManager {
               break;
             }
 
-            // Filter and process assignments
             for (var a in assignments) {
               try {
                 DateTime? dueDate;
                 if (a['due'] != null && a['due'].toString().trim().isNotEmpty) {
                   dueDate = DateTime.parse(a['due']);
 
-                  // Skip assignments that are too far in the future
                   if (dueDate.isAfter(cutoffDate)) {
                     continue;
                   }
@@ -256,12 +326,12 @@ class AssignmentManager {
           } else if (response.statusCode == 429) {
             retries++;
             final retryAfterHeader = response.headers['retry-after'];
-            Duration delay = Duration(seconds: 2 * retries); // Exponential backoff
+            Duration delay = Duration(seconds: 2 * retries);
 
             if (retryAfterHeader != null) {
               try {
                 final seconds = int.parse(retryAfterHeader);
-                delay = Duration(seconds: seconds + 1); // Add buffer
+                delay = Duration(seconds: seconds + 1);
               } catch (e) {
                 print("Failed to parse Retry-After header: $e");
               }
@@ -315,128 +385,196 @@ class AssignmentManager {
         clientCredentials, oauth1.Credentials(oToken, oSecret));
   }
 
-  List<Assignment> getAssignmentsForCourse(String courseName) {
-    return assignments[courseName] ?? [];
+  // ==============================================================================
+  // NEW OPTIMIZED QUERY METHODS USING BINARY SEARCH
+  // ==============================================================================
+
+  /// Get assignments for a specific date - O(log n) complexity
+  List<Assignment> getAssignmentsForDate(DateTime date) {
+    if (_sortedAssignments.isEmpty) return [];
+
+    DateTime startOfDay = DateTime(date.year, date.month, date.day);
+    DateTime endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    return _getAssignmentsInRange(startOfDay, endOfDay);
   }
 
-  // Utility method to force refresh assignments
-  Future<void> forceRefreshAssignments() async {
-    print("Force refreshing assignments...");
-    assignments.clear();
-    await hiveManager.box.delete("lastAssignmentFetch");
-    await getAssignments();
+  /// Get assignments for a date range - O(log n) complexity
+  List<Assignment> getAssignmentsInDateRange(DateTime startDate, DateTime endDate) {
+    return _getAssignmentsInRange(startDate, endDate);
   }
 
-  // Get assignments across all courses
-  List<Assignment> getAllAssignments() {
-    List<Assignment> allAssignments = [];
-    assignments.forEach((courseName, courseAssignments) {
-      allAssignments.addAll(courseAssignments);
-    });
-    return allAssignments;
+  /// Get assignments for entire month - optimized for calendar view
+  /// Returns Map<day, assignments> for efficient calendar rendering
+  Map<int, List<Assignment>> getAssignmentsForMonth(int year, int month) {
+    DateTime monthStart = DateTime(year, month, 1);
+    DateTime monthEnd = DateTime(year, month + 1, 0, 23, 59, 59);
+
+    List<Assignment> monthAssignments = _getAssignmentsInRange(monthStart, monthEnd);
+
+    // Group by day of month for calendar view
+    Map<int, List<Assignment>> dayGroups = {};
+    for (Assignment assignment in monthAssignments) {
+      if (assignment.dueDate != null) {
+        int day = assignment.dueDate!.day;
+        dayGroups.putIfAbsent(day, () => []).add(assignment);
+      }
+    }
+
+    print("Calendar query for $year-$month: ${monthAssignments.length} assignments across ${dayGroups.length} days");
+    return dayGroups;
   }
 
-  // Get upcoming assignments (due within next X days)
-  List<Assignment> getUpcomingAssignments({int days = 7}) {
-    DateTime cutoff = DateTime.now().add(Duration(days: days));
-    return getAllAssignments()
-        .where((assignment) =>
-    assignment.dueDate != null &&
-        assignment.dueDate!.isBefore(cutoff) &&
-        assignment.dueDate!.isAfter(DateTime.now()))
-        .toList()
-      ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+  /// Get assignment count for each day in a month (lightweight for calendar previews)
+  Map<int, int> getAssignmentCountsForMonth(int year, int month) {
+    Map<int, List<Assignment>> dayAssignments = getAssignmentsForMonth(year, month);
+    return dayAssignments.map((day, assignments) => MapEntry(day, assignments.length));
   }
 
-  // Assignment filtering methods
+  /// Get assignments for a week starting from the given date
+  Map<DateTime, List<Assignment>> getAssignmentsForWeek(DateTime weekStart) {
+    DateTime weekEnd = weekStart.add(Duration(days: 7));
+    List<Assignment> weekAssignments = _getAssignmentsInRange(weekStart, weekEnd);
+
+    Map<DateTime, List<Assignment>> dayGroups = {};
+    for (Assignment assignment in weekAssignments) {
+      if (assignment.dueDate != null) {
+        DateTime dayKey = DateTime(
+            assignment.dueDate!.year,
+            assignment.dueDate!.month,
+            assignment.dueDate!.day
+        );
+        dayGroups.putIfAbsent(dayKey, () => []).add(assignment);
+      }
+    }
+
+    return dayGroups;
+  }
+
+  /// Core binary search method for date ranges
+  List<Assignment> _getAssignmentsInRange(DateTime startDate, DateTime endDate) {
+    if (_sortedAssignments.isEmpty) return [];
+
+    // Find first assignment >= startDate
+    int startIndex = _findFirstAssignmentAtOrAfter(startDate);
+    if (startIndex == -1) return [];
+
+    // Find first assignment > endDate
+    int endIndex = _findFirstAssignmentAfter(endDate);
+    if (endIndex == -1) endIndex = _sortedAssignments.length;
+
+    // Return slice
+    return _sortedAssignments.sublist(startIndex, endIndex);
+  }
+
+  /// Binary search for first assignment at or after target date
+  int _findFirstAssignmentAtOrAfter(DateTime targetDate) {
+    int left = 0;
+    int right = _sortedAssignments.length - 1;
+    int result = -1;
+
+    while (left <= right) {
+      int mid = left + (right - left) ~/ 2;
+      Assignment assignment = _sortedAssignments[mid];
+
+      if (assignment.dueDate == null) {
+        // Null dates are at the end, search left
+        right = mid - 1;
+      } else if (assignment.dueDate!.compareTo(targetDate) >= 0) {
+        result = mid;
+        right = mid - 1; // Look for earlier match
+      } else {
+        left = mid + 1;
+      }
+    }
+
+    return result;
+  }
+
+  /// Binary search for first assignment after target date
+  int _findFirstAssignmentAfter(DateTime targetDate) {
+    int left = 0;
+    int right = _sortedAssignments.length - 1;
+    int result = -1;
+
+    while (left <= right) {
+      int mid = left + (right - left) ~/ 2;
+      Assignment assignment = _sortedAssignments[mid];
+
+      if (assignment.dueDate == null) {
+        right = mid - 1;
+      } else if (assignment.dueDate!.compareTo(targetDate) > 0) {
+        result = mid;
+        right = mid - 1;
+      } else {
+        left = mid + 1;
+      }
+    }
+
+    return result;
+  }
+
+  // ==============================================================================
+  // OPTIMIZED CONVENIENCE METHODS
+  // ==============================================================================
 
   List<Assignment> getAssignmentsDueToday() {
-    DateTime now = DateTime.now();
-    DateTime startOfToday = DateTime(now.year, now.month, now.day);
-    DateTime endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-    return getAllAssignments()
-        .where((assignment) =>
-    assignment.dueDate != null &&
-        assignment.dueDate!.isAfter(startOfToday.subtract(Duration(milliseconds: 1))) &&
-        assignment.dueDate!.isBefore(endOfToday.add(Duration(milliseconds: 1))))
-        .toList()
-      ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    return getAssignmentsForDate(DateTime.now());
   }
 
   List<Assignment> getAssignmentsDueTomorrow() {
-    DateTime now = DateTime.now();
-    DateTime tomorrow = now.add(Duration(days: 1));
-    DateTime startOfTomorrow = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
-    DateTime endOfTomorrow = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59);
-
-    return getAllAssignments()
-        .where((assignment) =>
-    assignment.dueDate != null &&
-        assignment.dueDate!.isAfter(startOfTomorrow.subtract(Duration(milliseconds: 1))) &&
-        assignment.dueDate!.isBefore(endOfTomorrow.add(Duration(milliseconds: 1))))
-        .toList()
-      ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    return getAssignmentsForDate(DateTime.now().add(Duration(days: 1)));
   }
 
-  List<Assignment> getAssignmentsDueLaterThisWeek() {
+  List<Assignment> getUpcomingAssignments({int days = 7}) {
     DateTime now = DateTime.now();
-    DateTime today = DateTime(now.year, now.month, now.day);
-    DateTime tomorrow = today.add(Duration(days: 1));
-
-    // Find the end of this week (Sunday)
-    int daysUntilSunday = 7 - now.weekday; // weekday: Monday = 1, Sunday = 7
-    DateTime endOfWeek = today.add(Duration(days: daysUntilSunday));
-    DateTime endOfSunday = DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59);
-
-    // Start from day after tomorrow
-    DateTime startOfDayAfterTomorrow = tomorrow.add(Duration(days: 1));
-
-    return getAllAssignments()
-        .where((assignment) =>
-    assignment.dueDate != null &&
-        assignment.dueDate!.isAfter(startOfDayAfterTomorrow.subtract(Duration(milliseconds: 1))) &&
-        assignment.dueDate!.isBefore(endOfSunday.add(Duration(milliseconds: 1))))
-        .toList()
-      ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    DateTime cutoff = now.add(Duration(days: days));
+    return _getAssignmentsInRange(now, cutoff);
   }
 
   List<Assignment> getOverdueAssignments() {
     DateTime now = DateTime.now();
     DateTime startOfToday = DateTime(now.year, now.month, now.day);
 
-    return getAllAssignments()
-        .where((assignment) =>
-    assignment.dueDate != null &&
-        assignment.dueDate!.isBefore(startOfToday))
-        .toList()
-      ..sort((a, b) => b.dueDate!.compareTo(a.dueDate!)); // Most recently overdue first
+    // Get all assignments before today
+    int endIndex = _findFirstAssignmentAtOrAfter(startOfToday);
+    if (endIndex == -1) return _sortedAssignments.where((a) => a.dueDate != null).toList();
+
+    return _sortedAssignments.sublist(0, endIndex).reversed.toList(); // Most recent first
   }
 
-  List<Assignment> getOtherAssignments() {
+  List<Assignment> getAssignmentsDueLaterThisWeek() {
     DateTime now = DateTime.now();
-    DateTime today = DateTime(now.year, now.month, now.day);
+    DateTime dayAfterTomorrow = DateTime(now.year, now.month, now.day + 2);
 
-    // Find the end of this week (Sunday)
+    // Find end of week (Sunday)
     int daysUntilSunday = 7 - now.weekday;
-    DateTime endOfWeek = today.add(Duration(days: daysUntilSunday));
-    DateTime endOfSunday = DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59);
+    DateTime endOfWeek = DateTime(now.year, now.month, now.day + daysUntilSunday, 23, 59, 59);
 
-    return getAllAssignments()
-        .where((assignment) =>
-    assignment.dueDate == null || // No due date
-        assignment.dueDate!.isAfter(endOfSunday)) // Due after this week
-        .toList()
-      ..sort((a, b) {
-        // Sort assignments with no due date to the end
-        if (a.dueDate == null && b.dueDate == null) return 0;
-        if (a.dueDate == null) return 1;
-        if (b.dueDate == null) return -1;
-        return a.dueDate!.compareTo(b.dueDate!);
-      });
+    return _getAssignmentsInRange(dayAfterTomorrow, endOfWeek);
   }
 
-  // Get all assignments grouped by category
+  // ==============================================================================
+  // LEGACY METHODS (maintained for compatibility)
+  // ==============================================================================
+
+  List<Assignment> getAssignmentsForCourse(String courseName) {
+    return assignments[courseName] ?? [];
+  }
+
+  Future<void> forceRefreshAssignments() async {
+    print("Force refreshing assignments...");
+    assignments.clear();
+    _sortedAssignments.clear();
+    _courseIndexes.clear();
+    await hiveManager.box.delete("lastAssignmentFetch");
+    await getAssignments();
+  }
+
+  List<Assignment> getAllAssignments() {
+    return List.from(_sortedAssignments); // Return copy to prevent external modification
+  }
+
   Map<String, List<Assignment>> getAssignmentsByCategory() {
     return {
       'Due Today': getAssignmentsDueToday(),
@@ -447,7 +585,26 @@ class AssignmentManager {
     };
   }
 
-  // Helper methods for type conversion
+  List<Assignment> getOtherAssignments() {
+    DateTime now = DateTime.now();
+    int daysUntilSunday = 7 - now.weekday;
+    DateTime endOfWeek = DateTime(now.year, now.month, now.day + daysUntilSunday, 23, 59, 59);
+
+    // Get assignments after this week + assignments with no due date
+    List<Assignment> afterThisWeek = [];
+    List<Assignment> noDueDate = [];
+
+    for (Assignment assignment in _sortedAssignments) {
+      if (assignment.dueDate == null) {
+        noDueDate.add(assignment);
+      } else if (assignment.dueDate!.isAfter(endOfWeek)) {
+        afterThisWeek.add(assignment);
+      }
+    }
+
+    return [...afterThisWeek, ...noDueDate];
+  }
+
   Map<String, List<Assignment>> _convertToTypedAssignments(Map<dynamic, dynamic> rawAssignments) {
     Map<String, List<Assignment>> typedAssignments = {};
 
@@ -456,7 +613,6 @@ class AssignmentManager {
       List<Assignment> courseAssignments = [];
 
       if (value is List) {
-        // Since Assignment class uses Hive annotations, the objects are stored directly as Assignment instances
         for (var item in value) {
           if (item is Assignment) {
             courseAssignments.add(item);
@@ -470,4 +626,12 @@ class AssignmentManager {
 
     return typedAssignments;
   }
+}
+
+/// Helper class for building optimized structures
+class _AssignmentWithCourse {
+  final Assignment assignment;
+  final String courseName;
+
+  _AssignmentWithCourse({required this.assignment, required this.courseName});
 }
