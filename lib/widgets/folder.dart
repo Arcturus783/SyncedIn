@@ -27,6 +27,7 @@ class _FolderState extends ConsumerState<Folder>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   bool _isPressed = false;
+  bool timeBased = false;
 
   @override
   void initState() {
@@ -60,6 +61,13 @@ class _FolderState extends ConsumerState<Folder>
     _animationController.reverse();
 
     // Navigate to assignment viewer when folder is tapped
+    if(widget.courseName == 'Today' || widget.courseName == 'Tomorrow' ||
+       widget.courseName == 'This Week' || widget.courseName == 'Overdue' ||
+       widget.courseName == 'No Date/Other'){
+      timeBased = true;
+    } else {
+      timeBased = false;
+    }
     _navigateToAssignments();
 
     widget.onTap?.call();
@@ -80,6 +88,7 @@ class _FolderState extends ConsumerState<Folder>
           courseName: widget.courseName,
           courseColor: folderColor,
           am: widget.am,
+          timeBased: timeBased,
         ),
       ),
     );
@@ -186,7 +195,14 @@ class _FolderState extends ConsumerState<Folder>
 
                       // Course name and details
                       Expanded(
-                        child: Column(
+                        child:
+                        (widget.courseName != 'Today' &&
+                            widget.courseName != 'Tomorrow' &&
+                            widget.courseName != 'This Week' &&
+                            widget.courseName != 'Overdue' &&
+                            widget.courseName != 'No Date/Other')
+                        ?
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -214,6 +230,25 @@ class _FolderState extends ConsumerState<Folder>
                                 color: textColor.withValues(alpha: 0.75),
                                 letterSpacing: 0.2,
                               ),
+                            ),
+                          ],
+                        ) :
+
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              widget.courseName,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                                letterSpacing: 0.3,
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),

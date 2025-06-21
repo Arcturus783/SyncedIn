@@ -179,7 +179,7 @@ class AssignmentManager {
           await _fetchAssignments(ids[i], courses[i], authedClient);
 
           if (i < ids.length - 1) {
-            await Future.delayed(Duration(milliseconds: 300));
+            await Future.delayed(const Duration(milliseconds: 300));
           }
         } catch (e) {
           print("Failed to fetch assignments for ${courses[i]}: $e");
@@ -265,7 +265,7 @@ class AssignmentManager {
     print("Fetching assignments for: $courseName");
 
     int start = 0;
-    const int limit = 10;
+    const int limit = 25; // Adjusted limit for better performance
     bool hasMore = true;
     List<Assignment> courseAssignments = [];
     const int maxRetries = 3;

@@ -4,7 +4,7 @@ import 'package:myapp/widgets/folder.dart';
 import 'package:myapp/class_essentials/theme.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
 
-class CourseScreen extends ConsumerWidget {
+class CourseScreen extends ConsumerStatefulWidget {
   final List<dynamic> courses;
   final AssignmentManager am;
   /*
@@ -28,7 +28,43 @@ class CourseScreen extends ConsumerWidget {
   CourseScreen({Key? key, required this.courses, required this.am}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CourseScreen> createState() => _CourseScreenState();
+}
+
+class _CourseScreenState extends ConsumerState<CourseScreen> {
+  bool _isTimeBasedView = false; // false = courses view, true = time-based view
+
+  // Time-based folder data
+  final List<String> _timeBasedFolders = [
+    'Today',
+    'Tomorrow',
+    'This Week',
+    'Overdue',
+    'No Date/Other'
+  ];
+
+  // Helper method to distribute color indices across the gradient
+  List<int> _distributeColorIndices(int itemCount, int totalColors) {
+    if (itemCount <= 1) return [0];
+    if (itemCount >= totalColors) {
+      // If we have more items than colors, cycle through all colors
+      return List.generate(itemCount, (index) => index % totalColors);
+    }
+
+    // Distribute indices evenly across the gradient
+    List<int> indices = [];
+    for (int i = 0; i < itemCount; i++) {
+      // Calculate the position in the gradient (0.0 to 1.0)
+      double position = i / (itemCount - 1);
+      // Map to color index (0 to totalColors-1)
+      int colorIndex = (position * (totalColors - 1)).round();
+      indices.add(colorIndex);
+    }
+    return indices;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = ref.watch(currentThemeProvider);
     final screenWidth = MediaQuery.of(context).size.width;
 
@@ -45,62 +81,115 @@ class CourseScreen extends ConsumerWidget {
       horizontalPadding = screenWidth * 0.25;
     }
 
-    return SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: horizontalPadding,
-            right: horizontalPadding,
-            top: 16.0,
-            bottom: 32.0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Optional header section
-              Padding(
-                padding: const EdgeInsets.only(bottom: 24.0),
-                child: Text(
-                  '${courses.length} Courses',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+    // Calculate color indices based on current view
+    final List<int> colorIndices = _isTimeBasedView
+        ? _distributeColorIndices(_timeBasedFolders.length, 15)
+        : _distributeColorIndices(widget.courses.length, 15);
 
-              // Course folders list
-              ...courses.asMap().entries.map((entry) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: horizontalPadding,
+          right: horizontalPadding,
+          top: 16.0,
+          bottom: 32.0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Toggle switch section
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Courses',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: !_isTimeBasedView
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontWeight: !_isTimeBasedView ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Switch.adaptive(
+                      value: _isTimeBasedView,
+                      onChanged: (value) {
+                        setState(() {
+                          _isTimeBasedView = value;
+                        });
+                      },
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  Text(
+                    'Time-based',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: _isTimeBasedView
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontWeight: _isTimeBasedView ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Header section
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24.0),
+              child: Text(
+                _isTimeBasedView
+                    ? ''
+                    : '${widget.courses.length} Courses',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+
+            // Folders list - either courses or time-based
+            if (_isTimeBasedView)
+            // Time-based folders
+              ..._timeBasedFolders.asMap().entries.map((entry) {
                 int index = entry.key;
-                if(index > 15) index = index % 15; // Cycle through colors if more than 15 courses
+                String folderName = entry.value;
+                int colorIndex = colorIndices[index];
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Folder(
+                    courseName: folderName,
+                    colorIndex: colorIndex,
+                    am: widget.am,
+                  ),
+                );
+              })
+            else
+            // Course folders
+              ...widget.courses.asMap().entries.map((entry) {
+                int index = entry.key;
                 String courseName = entry.value;
+                int colorIndex = colorIndices[index];
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Folder(
                     courseName: courseName,
-                    colorIndex: index,
-                    am: am,
-                    onTap: () {
-                      // Handle folder tap - you can navigate to course details here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Opening $courseName'),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                      );
-                    },
+                    colorIndex: colorIndex,
+                    am: widget.am,
                   ),
                 );
               }),
-            ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }

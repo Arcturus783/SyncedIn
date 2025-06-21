@@ -95,7 +95,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   List<String> dismissedAssignments = [];
   List<Assignment> disA = [];
   List<Assignment> assignmentsPerDay = [];
-  late List<dynamic> courses;
+  List<dynamic> courses = [];
   Map<String, List<Assignment>> assignments = {};
 
 
@@ -137,8 +137,8 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     oSecret = widget.oauthSecret;
     needCourses = widget.coursesNeeded;
     am = AssignmentManager(hiveManager, oToken, oSecret);
-    initializeData();
     courses = hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
+    initializeData();
   }
 
   @override
@@ -156,6 +156,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       if (needCourses) {
         print("Getting courses...");
         await am.getCourses();
+        setState(() {
+          courses = hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
+        });
       }
 
       setState(() {

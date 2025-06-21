@@ -8,6 +8,7 @@
   import 'package:flutter_native_splash/flutter_native_splash.dart';
   import 'package:myapp/class_essentials/theme.dart';
   import 'package:flutter_riverpod/flutter_riverpod.dart';
+  import 'package:myapp/class_essentials/assignment_manager.dart';
 
   const storage = FlutterSecureStorage();
 
@@ -20,7 +21,7 @@
     if (secret == null || token == null){
       FlutterNativeSplash.remove();
       runApp(
-        ProviderScope(
+        const ProviderScope(
           child: MyApp()
         )
       );
@@ -146,7 +147,8 @@
           if (accessToken == null || accessTokenSecret == null) {
             throw Exception('Failed to parse access tokens from response');
           }
-  
+
+          /*
           final authedClient = oauth1.Client(
               platform.signatureMethod,
               clientCredentials,
@@ -157,18 +159,19 @@
               Uri.parse('https://api.schoology.com/v1/messages/inbox')
           );
           print('API Response: ${response.body}');
-  
+          */
           await storage.write(key: 'oauth_token', value: accessToken);
           await storage.write(key: 'oauth_secret', value: accessTokenSecret);
           //after logging in, "restart" the app to trigger the main function's conditional checking for log-in credentials
           runApp(
-              MaterialApp(
+            ProviderScope(
+              child: MaterialApp(
                 debugShowCheckedModeBanner: false,
                 home: home.Central(
                   oauthToken: accessToken,
                   oauthSecret: accessTokenSecret,
                 ),
-              )
+              ))
           );
   
         } catch (e, stackTrace) {

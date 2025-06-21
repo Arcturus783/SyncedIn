@@ -6,12 +6,14 @@ class AssignmentViewer extends StatelessWidget {
   final String courseName;
   final Color courseColor;
   final AssignmentManager am;
+  final bool timeBased;
 
   const AssignmentViewer({
     super.key,
     required this.courseName,
     required this.courseColor,
     required this.am,
+    required this.timeBased,
   });
 
   // Sample assignments data
@@ -64,7 +66,38 @@ class AssignmentViewer extends StatelessWidget {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
     final crossAxisCount = isTablet ? 2 : 1;
-    List<Assignment> assignments = am.getAssignmentsForCourse(courseName);
+    String noneText = "";
+    List<Assignment> assignments;
+    if(timeBased){
+      switch(courseName){
+        case 'Today':
+          noneText = "You have no assignments due today!";
+          assignments = am.getAssignmentsDueToday();
+          break;
+        case 'Tomorrow':
+          noneText = "You have no assignments due tomorrow!";
+          assignments = am.getAssignmentsDueTomorrow();
+          break;
+        case 'This Week':
+          noneText = "You have no assignments due later this week!";
+          assignments = am.getAssignmentsDueLaterThisWeek();
+          break;
+        case 'Overdue':
+          noneText = "You have no overdue assignments!";
+          assignments = am.getOverdueAssignments();
+          break;
+        case 'No Date/Other':
+          noneText = "You have no assignments without a due date!";
+          assignments = am.getOtherAssignments();
+          break;
+        default:
+          assignments = [];
+          print("Error: Unknown time-based folder $courseName");
+      }
+    } else{
+      noneText = "You have no assignments for this course!";
+      assignments = am.getAssignmentsForCourse(courseName);
+    }
     print("Assignments for $courseName: ${assignments.length}");
 
     return Scaffold(
@@ -88,7 +121,7 @@ class AssignmentViewer extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: assignments.isEmpty ? const Center(child: Text("You have no assignments for this course!")) : GridView.builder(
+          child: assignments.isEmpty ? Center(child: Text(noneText)) : GridView.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
               childAspectRatio: isTablet ? 2.5 : 3.0,
