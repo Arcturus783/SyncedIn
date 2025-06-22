@@ -168,6 +168,7 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     courseName: folderName,
                     colorIndex: colorIndex,
                     am: widget.am,
+                    indexNum: 0,
                   ),
                 );
               })
@@ -184,6 +185,7 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     courseName: courseName,
                     colorIndex: colorIndex,
                     am: widget.am,
+                    indexNum: index + 1,
                   ),
                 );
               }),

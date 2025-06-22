@@ -9,14 +9,16 @@ class Folder extends ConsumerStatefulWidget {
   final int colorIndex;
   final VoidCallback? onTap;
   final AssignmentManager am;
+  final int indexNum;
 
   const Folder({
-    Key? key,
+    super.key,
     required this.courseName,
     required this.colorIndex,
     required this.am,
+    required this.indexNum,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<Folder> createState() => _FolderState();
@@ -223,7 +225,7 @@ class _FolderState extends ConsumerState<Folder>
 
                             // Subtle course indicator
                             Text(
-                              'Course ${widget.colorIndex + 1}',
+                              'Course ${widget.indexNum}',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,

@@ -267,6 +267,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           assignmentsPerDay: assignmentsPerDay,
           focusedDay: _focusedDay,
           currentColor: const Color.fromARGB(255, 140, 140, 140),
+          am: am,
         );
         //return _calendarScreen();
       case 1:
@@ -295,17 +296,20 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     Color textColor = (theme.brightness == Brightness.dark)
         ? Colors.white.withValues(alpha: 0.85)
         : Colors.black.withValues(alpha: 0.85);
+    final isLightTheme = theme.brightness == Brightness.light;
 
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: isLightTheme
+          ? const Color.fromARGB(255, 248, 248, 245)
+          : const Color.fromARGB(255, 30, 30, 40),
       appBar: AppBar(
         leading: const Icon(
           Icons.logo_dev_rounded,
           size: 40,
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: theme.colorScheme.surface,
         title: Text("App Name",
             style: TextStyle(
               fontSize: 26,

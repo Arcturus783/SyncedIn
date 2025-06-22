@@ -433,7 +433,7 @@ class AssignmentManager {
 
   /// Get assignments for a week starting from the given date
   Map<DateTime, List<Assignment>> getAssignmentsForWeek(DateTime weekStart) {
-    DateTime weekEnd = weekStart.add(Duration(days: 7));
+    DateTime weekEnd = weekStart.add(const Duration(days: 7));
     List<Assignment> weekAssignments = _getAssignmentsInRange(weekStart, weekEnd);
 
     Map<DateTime, List<Assignment>> dayGroups = {};

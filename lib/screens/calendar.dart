@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:myapp/class_essentials/assignment.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/assignment_cards.dart';
+import 'package:myapp/class_essentials/assignment_manager.dart';
 
 class CalendarScreen extends StatefulWidget{
   final DateTime focusedDay;
@@ -11,6 +12,7 @@ class CalendarScreen extends StatefulWidget{
   final Function(DateTime) getEventsToday;
   final Function(DateTime) getAssignmentsForDay;
   final List<Assignment> assignmentsPerDay;
+  final AssignmentManager am;
 
   const CalendarScreen({
     super.key,
@@ -19,6 +21,7 @@ class CalendarScreen extends StatefulWidget{
     required this.assignmentsPerDay,
     required this.getEventsToday,
     required this.getAssignmentsForDay,
+    required this.am,
   });
 
   @override
@@ -35,7 +38,9 @@ class CalendarScreenState extends State<CalendarScreen>{
   Widget build(BuildContext context){
     CalendarFormat calendarFormat = CalendarFormat.month;
     final selectedDay = DateTime.now();
-    List<Assignment> aToday = widget.getEventsToday(selectedDay);
+    List<Assignment> aToday = widget.am.getAssignmentsForDate(selectedDay);
+    final ThemeData theme = Theme.of(context);
+
     return Column(children: <Widget>[
       TableCalendar(
         availableCalendarFormats: const {CalendarFormat.month: "Month"},
@@ -46,7 +51,7 @@ class CalendarScreenState extends State<CalendarScreen>{
               fontWeight: FontWeight.bold,
             )),
         firstDay: DateTime.utc(2025, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
+        lastDay: DateTime(DateTime.now().year + 1, 12, 31),
         focusedDay: widget.focusedDay,
         eventLoader: (day) {
           return widget.getEventsToday(day);
@@ -58,7 +63,7 @@ class CalendarScreenState extends State<CalendarScreen>{
           setState(() {
             focusedDay = focusedDay;
             selectedDay = selectedDay;
-            aToday = widget.getEventsToday(selectedDay);
+            aToday = widget.am.getAssignmentsForDate(selectedDay);
           });
         },
         calendarFormat: calendarFormat,
@@ -70,7 +75,9 @@ class CalendarScreenState extends State<CalendarScreen>{
         calendarStyle: CalendarStyle(
           //you can specify a font too for the calendar text here
           defaultTextStyle:
-          const TextStyle(color: Color.fromARGB(255, 5, 5, 5)),
+          TextStyle(
+              color: theme.colorScheme.onSurface,
+          ),
           markerSize: 7,
           //size of an event dot
           markersMaxCount: 3,
@@ -85,9 +92,11 @@ class CalendarScreenState extends State<CalendarScreen>{
           ),
         ),
       ),
+
       const SizedBox(height: 30),
+
       Expanded(
-          child: ListView.builder(
+          child: aToday.isNotEmpty ? ListView.builder(
               itemCount: aToday.length,
               itemBuilder: (BuildContext context, int index) {
                 Assignment assignment = aToday[index];
@@ -98,8 +107,28 @@ class CalendarScreenState extends State<CalendarScreen>{
                     aType: assignment.type.toLowerCase()
                 );
               }
-          )
+          ) : const Center(
+            child: Text(
+              "No assignments for this day!",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            ),
+          ),
       )
     ]);
+  }
+
+
+
+  IconData _getIconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'assignment':
+        return Icons.assignment_rounded;
+      case 'discussion':
+        return Icons.forum_rounded;
+      case 'assessment':
+        return Icons.quiz_rounded;
+      default:
+        return Icons.task_rounded;
+    }
   }
 }
