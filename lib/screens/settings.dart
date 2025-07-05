@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/theme.dart';
-import 'package:myapp/class_essentials/hive.dart';
 
 class SettingsScreen extends ConsumerWidget {
-  final Function(dynamic) logout;
+  final Future<void> Function(BuildContext) logout;
 
   const SettingsScreen({
     super.key,

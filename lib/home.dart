@@ -1,12 +1,9 @@
 import '../class_essentials/assignment.dart';
 import '../class_essentials/hive.dart';
-import '../widgets/temp_listview.dart';
 import '../screens/settings.dart';
 import '../screens/calendar.dart';
 import 'package:flutter/material.dart';
-import 'package:oauth1/oauth1.dart' as oauth1;
 import 'main.dart' as main_screen;
-import 'dart:convert';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:myapp/class_essentials/theme.dart';
 import 'package:myapp/widgets/course_listview.dart';
@@ -15,25 +12,6 @@ import 'package:myapp/class_essentials/assignment_manager.dart';
 
 final hiveManager = HiveBoxManager();
 ThemeManager tm = ThemeManager();
-
-/*
-void main() async {
-  await hiveManager.init();
-  WidgetsFlutterBinding.ensureInitialized(); //VERY IMPORTANT!
-  List<dynamic> courses = hiveManager.box.get("courses", defaultValue: []);
-  List<dynamic> ids = hiveManager.box.get("ids", defaultValue: []);
-  tm = ThemeManager();
-  if (courses.isEmpty || ids.isEmpty) {
-    runApp(const ProviderScope(
-      child: Central(
-      coursesNeeded: true,
-    )));
-  } else {
-    runApp(const ProviderScope(child: Central()));
-  }
-}
-
- */
 
 class Central extends ConsumerWidget {
   final String? oauthToken;
@@ -184,13 +162,39 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   }
 
   //returns to home screen and clears everything
-  void logout(context) {
-    hiveManager.box.deleteFromDisk();
-    main_screen.clearLogin();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const main_screen.MyApp()),
-    );
+  // Fixed logout function that properly clears data without closing the box
+  Future<void> logout(BuildContext context) async {
+    try {
+      // Clear all data from Hive box instead of deleting it
+      if (hiveManager.isInitialized) {
+        await hiveManager.box.clear();
+      }
+
+      // Clear OAuth credentials
+      main_screen.clearLogin();
+
+      // Navigate to login screen and remove all previous routes
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const main_screen.MyApp(),
+          ),
+              (route) => false, // Remove all previous routes
+        );
+      }
+    } catch (e) {
+      print("Error during logout: $e");
+
+      // Fallback navigation even if clearing fails
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const main_screen.MyApp(),
+          ),
+              (route) => false,
+        );
+      }
+    }
   }
 
 
