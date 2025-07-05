@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/theme.dart';
+import 'package:myapp/class_essentials/hive.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final Function(dynamic) logout;
@@ -12,43 +13,32 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTheme = ref.watch(themeProvider);
+    final currentTheme = ref.watch(currentThemeProvider);
     final availableThemes = ThemeManager.getAvailableThemes();
-    final theme = Theme.of(context);
+    final theme = (Theme.of(context).brightness == Brightness.dark)
+        ? currentTheme.darkTheme
+        : currentTheme.lightTheme;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme!.colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header Section
                 _buildHeader(context, theme),
-
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
                 // Theme Section
-                _buildSection(
-                  context: context,
-                  title: 'Appearance',
-                  subtitle: 'Customize your app experience',
-                  child: _buildThemeSelector(context, ref, currentTheme, availableThemes),
-                ),
-
+                _buildThemeSection(context, ref, currentTheme, availableThemes),
                 const SizedBox(height: 32),
 
                 // Account Section
-                _buildSection(
-                  context: context,
-                  title: 'Account',
-                  subtitle: 'Manage your account settings',
-                  child: _buildAccountActions(context),
-                ),
-
-                const SizedBox(height: 40),
+                _buildAccountSection(context, theme),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -58,304 +48,433 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildHeader(BuildContext context, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                Icons.settings_rounded,
-                color: theme.colorScheme.primary,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Settings',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Personalize your experience',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSection({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required Widget child,
-  }) {
-    final theme = Theme.of(context);
-
     return Container(
-      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
-          width: 1,
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.8),
+            theme.colorScheme.primary.withValues(alpha: 0.6),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: theme.colorScheme.primary.withValues(alpha: 0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              Icons.settings_rounded,
+              color: theme.colorScheme.onPrimary,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Settings',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Personalize your experience',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onPrimary.withValues(alpha: 0.9),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeSection(
+      BuildContext context,
+      WidgetRef ref,
+      AppTheme currentTheme,
+      List<String> availableThemes,
+      ) {
+    final contextTheme = Theme.of(context);
+    final isDark = contextTheme.brightness == Brightness.dark;
+    final theme = isDark ? currentTheme.darkTheme : currentTheme.lightTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme!.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.palette_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Appearance',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Choose your preferred theme',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildThemeGrid(context, ref, currentTheme, availableThemes, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeGrid(
+      BuildContext context,
+      WidgetRef ref,
+      AppTheme currentTheme,
+      List<String> availableThemes,
+      bool isDark,
+      ) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: availableThemes.length,
+      itemBuilder: (context, index) {
+        final themeId = availableThemes[index];
+        final appTheme = ThemeManager.getTheme(themeId);
+        final isSelected = themeId == currentTheme.name.toLowerCase();
+        final previewTheme = isDark ? appTheme.darkTheme : appTheme.lightTheme;
+
+        return _buildThemeCard(
+          context,
+          ref,
+          appTheme,
+          themeId,
+          isSelected,
+          previewTheme!,
+        );
+      },
+    );
+  }
+
+  Widget _buildThemeCard(
+      BuildContext context,
+      WidgetRef ref,
+      AppTheme appTheme,
+      String themeId,
+      bool isSelected,
+      ThemeData previewTheme,
+      ) {
+    return GestureDetector(
+      onTap: () {
+        ref.read(themeProvider.notifier).changeTheme(themeId);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              previewTheme.colorScheme.primary.withValues(alpha: 0.8),
+              previewTheme.colorScheme.primary.withValues(alpha: 0.6),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? previewTheme.colorScheme.onPrimary.withValues(alpha: 0.8)
+                : Colors.transparent,
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: previewTheme.colorScheme.primary.withValues(alpha: 0.3),
+              blurRadius: isSelected ? 20 : 12,
+              offset: Offset(0, isSelected ? 8 : 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Background pattern with course colors
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: CustomPaint(
+                  painter: ThemePatternPainter(appTheme.courseColors),
+                ),
+              ),
+            ),
+
+            // Content overlay
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.3),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Premium badge
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (appTheme.isPremium)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'PRO',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      if (isSelected)
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check_rounded,
+                            color: previewTheme.colorScheme.primary,
+                            size: 16,
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Theme name
+                  Text(
+                    appTheme.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  // Color preview dots
+                  Row(
+                    children: appTheme.courseColors.take(4).map((color) {
+                      return Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.only(right: 4),
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 0.5,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildThemeSelector(
-      BuildContext context,
-      WidgetRef ref,
-      String currentTheme,
-      List<String> availableThemes,
-      ) {
-    final theme = Theme.of(context);
-
+  Widget _buildAccountSection(BuildContext context, ThemeData theme) {
     return Container(
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-          width: 1.5,
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          width: 1,
         ),
-        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: DropdownButtonFormField<String>(
-        value: currentTheme,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
-          fillColor: theme.colorScheme.surface,
-          filled: true,
-        ),
-        dropdownColor: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        icon: Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
-            size: 24,
-          ),
-        ),
-        items: availableThemes.map((themeId) {
-          final appTheme = ThemeManager.getTheme(themeId);
-          return DropdownMenuItem<String>(
-            value: themeId,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  // Enhanced color preview with gradient
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          appTheme.lightTheme.colorScheme.primary,
-                          appTheme.lightTheme.colorScheme.secondary,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: appTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              appTheme.name,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            if (appTheme.isPremium) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Colors.amber, Colors.orange],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.star_rounded,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'PRO',
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (themeId == currentTheme) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle_rounded,
-                                size: 14,
-                                color: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Current theme',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.account_circle_rounded,
+                  color: theme.colorScheme.secondary,
+                  size: 24,
+                ),
               ),
-            ),
-          );
-        }).toList(),
-        onChanged: (String? newTheme) {
-          if (newTheme != null) {
-            ref.read(themeProvider.notifier).changeTheme(newTheme);
-          }
-        },
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Account',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Manage your account settings',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildAccountActions(context, theme),
+        ],
       ),
     );
   }
 
-  Widget _buildAccountActions(BuildContext context) {
-    final theme = Theme.of(context);
-
+  Widget _buildAccountActions(BuildContext context, ThemeData theme) {
     return Column(
       children: [
-        _buildActionTile(
+        /* In case this is needed later.
+        _buildLargeActionTile(
           context: context,
+          theme: theme,
           icon: Icons.help_outline_rounded,
           title: 'Help & Support',
           subtitle: 'Get assistance and contact support',
+          color: theme.colorScheme.primary,
           onTap: () {
             // Add help action
           },
         ),
-        const SizedBox(height: 12),
-        _buildActionTile(
+        const SizedBox(height: 16),
+        _buildLargeActionTile(
           context: context,
+          theme: theme,
           icon: Icons.info_outline_rounded,
           title: 'About',
           subtitle: 'App version and information',
+          color: theme.colorScheme.tertiary,
           onTap: () {
             // Add about action
           },
         ),
+        */
         const SizedBox(height: 16),
-        Divider(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-          thickness: 1,
-        ),
-        const SizedBox(height: 16),
-        _buildActionTile(
+        _buildLargeActionTile(
           context: context,
+          theme: theme,
           icon: Icons.logout_rounded,
           title: 'Sign Out',
           subtitle: 'Log out of your account',
+          color: theme.colorScheme.error,
           onTap: () => logout(context),
           isDestructive: true,
         ),
@@ -363,42 +482,47 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionTile({
+  Widget _buildLargeActionTile({
     required BuildContext context,
+    required ThemeData theme,
     required IconData icon,
     required String title,
     required String subtitle,
+    required Color color,
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    final theme = Theme.of(context);
-    final color = isDestructive
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurface;
-
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: isDestructive
-              ? theme.colorScheme.error.withOpacity(0.05)
-              : theme.colorScheme.surface,
+          gradient: LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
                 color: color,
-                size: 20,
+                size: 24,
               ),
             ),
             const SizedBox(width: 16),
@@ -408,29 +532,58 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                       color: color,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: color.withOpacity(0.7),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
               ),
             ),
             Icon(
-              Icons.chevron_right_rounded,
-              color: color.withOpacity(0.5),
-              size: 20,
+              Icons.arrow_forward_ios_rounded,
+              color: color.withValues(alpha: 0.7),
+              size: 16,
             ),
           ],
         ),
       ),
     );
   }
+}
+
+// Custom painter for theme pattern background
+class ThemePatternPainter extends CustomPainter {
+  final List<Color> colors;
+
+  ThemePatternPainter(this.colors);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Create a subtle pattern using the theme's course colors
+    for (int i = 0; i < colors.length && i < 6; i++) {
+      final radius = (size.width * 0.3) - (i * 8);
+      final opacity = 0.1 - (i * 0.015);
+
+      paint.color = colors[i].withValues(alpha: opacity);
+
+      canvas.drawCircle(
+        Offset(size.width * 0.8, size.height * 0.2),
+        radius,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

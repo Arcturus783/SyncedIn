@@ -9,12 +9,16 @@
   import 'package:myapp/class_essentials/theme.dart';
   import 'package:flutter_riverpod/flutter_riverpod.dart';
   import 'package:myapp/class_essentials/assignment_manager.dart';
+  import 'package:myapp/class_essentials/hive.dart';
 
   const storage = FlutterSecureStorage();
 
   void main() async {
     WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+    final hiveManager = HiveBoxManager();
+    await hiveManager.init();
 
     String? token = await storage.read(key: 'oauth_token');
     String? secret = await storage.read(key: 'oauth_secret');
@@ -170,6 +174,7 @@
                 home: home.Central(
                   oauthToken: accessToken,
                   oauthSecret: accessTokenSecret,
+                  coursesNeeded: true,
                 ),
               ))
           );

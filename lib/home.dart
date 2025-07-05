@@ -14,8 +14,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
 
 final hiveManager = HiveBoxManager();
-late ThemeManager tm;
+ThemeManager tm = ThemeManager();
 
+/*
 void main() async {
   await hiveManager.init();
   WidgetsFlutterBinding.ensureInitialized(); //VERY IMPORTANT!
@@ -31,6 +32,8 @@ void main() async {
     runApp(const ProviderScope(child: Central()));
   }
 }
+
+ */
 
 class Central extends ConsumerWidget {
   final String? oauthToken;
@@ -138,6 +141,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     needCourses = widget.coursesNeeded;
     am = AssignmentManager(hiveManager, oToken, oSecret);
     courses = hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
+    if(courses == ["No Courses Found!"]) needCourses = true;
     initializeData();
   }
 
@@ -149,9 +153,11 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
   Future<void> initializeData() async {
     try {
+      /*
       if (!hiveManager.isInitialized) {
         await hiveManager.init();
       }
+      */
 
       if (needCourses) {
         print("Getting courses...");
