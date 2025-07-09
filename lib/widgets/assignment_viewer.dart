@@ -16,56 +16,13 @@ class AssignmentViewer extends StatelessWidget {
     required this.timeBased,
   });
 
-  // Sample assignments data
-  /*
-  List<Assignment> get _assignments => [
-    Assignment(
-      title: "Midterm Exam",
-      dueDate: "June 15, 2025",
-      type: "assessment",
-    ),
-    Assignment(
-      title: "Weekly Discussion: Chapter 5",
-      dueDate: "June 12, 2025",
-      type: "discussion",
-    ),
-    Assignment(
-      title: "Research Paper Draft",
-      dueDate: "June 18, 2025",
-      type: "assignment",
-    ),
-    Assignment(
-      title: "Lab Report #3",
-      dueDate: "June 20, 2025",
-      type: "assignment",
-    ),
-    Assignment(
-      title: "Final Project Presentation",
-      dueDate: "June 25, 2025",
-      type: "assessment",
-    ),
-    Assignment(
-      title: "Group Discussion Forum",
-      dueDate: "June 14, 2025",
-      type: "discussion",
-    ),
-    Assignment(
-      title: "Problem Set 4",
-      dueDate: "June 22, 2025",
-      type: "assignment",
-    ),
-    Assignment(
-      title: "Peer Review Activity",
-      dueDate: "June 16, 2025",
-      type: "other",
-    ),
-  ];
-  */
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
     final crossAxisCount = isTablet ? 2 : 1;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     String noneText = "";
     List<Assignment> assignments;
     if(timeBased){
@@ -100,12 +57,16 @@ class AssignmentViewer extends StatelessWidget {
     }
     print("Assignments for $courseName: ${assignments.length}");
 
+    // Calculate app bar text color based on course color
+    final appBarTextColor = _getTextColorForBackground(courseColor);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(courseName),
         backgroundColor: courseColor,
-        foregroundColor: _getTextColorForBackground(courseColor),
+        foregroundColor: appBarTextColor,
         elevation: 0,
+        iconTheme: IconThemeData(color: appBarTextColor),
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -113,7 +74,7 @@ class AssignmentViewer extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              courseColor.withValues(alpha: 0.15),
+              courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.15),
               Theme.of(context).scaffoldBackgroundColor,
             ],
             stops: const [0.15, 0.85],
@@ -121,7 +82,18 @@ class AssignmentViewer extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: assignments.isEmpty ? Center(child: Text(noneText)) : GridView.builder(
+          child: assignments.isEmpty
+              ? Center(
+            child: Text(
+              noneText,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          )
+              : GridView.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
               childAspectRatio: isTablet ? 2.5 : 3.0,
@@ -159,28 +131,46 @@ class AssignmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = Color.fromARGB(
-      courseColor.a.round(),
-      (courseColor.r + (255 - courseColor.r) * 0.5).round(),
-      (courseColor.g + (255 - courseColor.g) * 0.5).round(),
-      (courseColor.b + (255 - courseColor.b) * 0.5).round(),
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    // Create a more reliable card background that works in both light and dark modes
+    final cardColor = isDarkMode
+        ? Color.alphaBlend(
+      courseColor.withValues(alpha: 0.15),
+      theme.colorScheme.surface,
+    )
+        : Color.alphaBlend(
+      courseColor.withValues(alpha: 0.08),
+      theme.colorScheme.surface,
     );
 
-    final textColor = courseColor.withValues(alpha:1);
-    final subtitleColor = textColor.withValues(alpha: 0.7);
+    // Use theme-aware text colors with sufficient contrast
+    final primaryTextColor = theme.colorScheme.onSurface;
+    final secondaryTextColor = theme.colorScheme.onSurface.withValues(alpha: 0.7);
+
+    // Icon container background that adapts to theme
+    final iconContainerColor = isDarkMode
+        ? courseColor.withValues(alpha: 0.2)
+        : courseColor.withValues(alpha: 0.15);
+
+    // Icon color that ensures visibility
+    final iconColor = isDarkMode
+        ? courseColor.withValues(alpha: 0.9)
+        : courseColor;
 
     return Card(
-      elevation: 4,
-      shadowColor: courseColor.withValues(alpha: 0.3),
+      elevation: isDarkMode ? 2 : 4,
+      shadowColor: courseColor.withValues(alpha: isDarkMode ? 0.15 : 0.3),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
       ),
+      color: cardColor,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16.0),
-          color: cardColor,
           border: Border.all(
-            color: courseColor.withValues(alpha: 0.3),
+            color: courseColor.withValues(alpha: isDarkMode ? 0.2 : 0.3),
             width: 1,
           ),
         ),
@@ -194,13 +184,13 @@ class AssignmentCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8.0),
                     decoration: BoxDecoration(
-                      color: courseColor.withValues(alpha: 0.2),
+                      color: iconContainerColor,
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                     child: Icon(
                       _getIconForType(assignment.type),
                       size: 20,
-                      color: courseColor,
+                      color: iconColor,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -210,7 +200,7 @@ class AssignmentCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: textColor,
+                        color: primaryTextColor,
                         height: 1.3,
                       ),
                       maxLines: 2,
@@ -225,7 +215,7 @@ class AssignmentCard extends StatelessWidget {
                   Icon(
                     Icons.schedule_rounded,
                     size: 16,
-                    color: subtitleColor,
+                    color: secondaryTextColor,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -236,7 +226,7 @@ class AssignmentCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: subtitleColor,
+                        color: secondaryTextColor,
                       ),
                     ),
                   ),

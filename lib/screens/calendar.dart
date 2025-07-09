@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:myapp/class_essentials/assignment.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../widgets/assignment_cards.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/class_essentials/theme.dart';
 
-class CalendarScreen extends StatefulWidget{
+class CalendarScreen extends ConsumerStatefulWidget {
   final DateTime focusedDay;
   final Color currentColor;
   final Function(DateTime) getEventsToday;
@@ -25,99 +24,435 @@ class CalendarScreen extends StatefulWidget{
   });
 
   @override
-  CalendarScreenState createState() => CalendarScreenState();
+  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class CalendarScreenState extends State<CalendarScreen>{
+class _CalendarScreenState extends ConsumerState<CalendarScreen>
+    with TickerProviderStateMixin {
+  late DateTime _selectedDay;
+  late DateTime _focusedDay;
+  late List<Assignment> _assignmentsToday;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  late AnimationController _slideController;
+  late Animation<Offset> _slideAnimation;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+
   @override
-  void initState(){
+  void initState() {
     super.initState();
+    _selectedDay = DateTime.now();
+    _focusedDay = widget.focusedDay;
+
+    // Use the new optimized method from AssignmentManager
+    _assignmentsToday = widget.am.getAssignmentsForDate(_selectedDay);
+
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _fadeController.forward();
+    _slideController.forward();
   }
 
   @override
-  Widget build(BuildContext context){
-    CalendarFormat calendarFormat = CalendarFormat.month;
-    final selectedDay = DateTime.now();
-    List<Assignment> aToday = widget.am.getAssignmentsForDate(selectedDay);
-    final ThemeData theme = Theme.of(context);
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
 
-    return Column(children: <Widget>[
-      TableCalendar(
-        availableCalendarFormats: const {CalendarFormat.month: "Month"},
-        headerStyle: const HeaderStyle(
-            titleCentered: true,
-            titleTextStyle: TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
-            )),
-        firstDay: DateTime.utc(2025, 1, 1),
-        lastDay: DateTime(DateTime.now().year + 1, 12, 31),
-        focusedDay: widget.focusedDay,
-        eventLoader: (day) {
-          return widget.getEventsToday(day);
-        },
-        selectedDayPredicate: (day) {
-          return isSameDay(selectedDay, day);
-        },
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            focusedDay = focusedDay;
-            selectedDay = selectedDay;
-            aToday = widget.am.getAssignmentsForDate(selectedDay);
-          });
-        },
-        calendarFormat: calendarFormat,
-        onFormatChanged: (format) {
-          setState(() {
-            calendarFormat = format;
-          });
-        },
-        calendarStyle: CalendarStyle(
-          //you can specify a font too for the calendar text here
-          defaultTextStyle:
-          TextStyle(
-              color: theme.colorScheme.onSurface,
-          ),
-          markerSize: 7,
-          //size of an event dot
-          markersMaxCount: 3,
-          //default is 4, looks crowded if they have 4+ assignments
-          todayDecoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
-            shape: BoxShape.circle,
-          ),
-          selectedDecoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
-            shape: BoxShape.circle,
-          ),
-        ),
-      ),
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    setState(() {
+      _selectedDay = selectedDay;
+      _focusedDay = focusedDay;
+      // Use the optimized method for getting assignments for the selected date
+      _assignmentsToday = widget.am.getAssignmentsForDate(selectedDay);
+    });
 
-      const SizedBox(height: 30),
+    // Trigger a subtle animation when changing days
+    _fadeController.reset();
+    _fadeController.forward();
+  }
 
-      Expanded(
-          child: aToday.isNotEmpty ? ListView.builder(
-              itemCount: aToday.length,
-              itemBuilder: (BuildContext context, int index) {
-                Assignment assignment = aToday[index];
-                return CalendarCard(
-                    color: const Color.fromARGB(225, 252, 252, 252),
-                    title: assignment.title,
-                    dueDate: assignment.dueDate,
-                    aType: assignment.type.toLowerCase()
-                );
-              }
-          ) : const Center(
-            child: Text(
-              "No assignments for this day!",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+  // Updated event loader to work with the new AssignmentManager structure
+  List<Assignment> _getEventsForDay(DateTime day) {
+    return widget.am.getAssignmentsForDate(day);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    DateTime today = DateTime.now();
+
+    return Column(
+      children: [
+        // Enhanced Calendar Container
+        Container(
+          margin: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24.0),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.lightTheme.colorScheme.surface,
+                theme.lightTheme.colorScheme.surface.withValues(alpha: 0.8),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                spreadRadius: 2,
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: isDarkMode
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.05),
+                spreadRadius: 0,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24.0),
+            child: TableCalendar(
+              availableCalendarFormats: const {CalendarFormat.month: "Month"},
+              headerStyle: HeaderStyle(
+                titleCentered: true,
+                formatButtonVisible: false,
+                leftChevronIcon: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Icon(
+                    Icons.chevron_left_rounded,
+                    color: theme.lightTheme.colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                rightChevronIcon: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: theme.lightTheme.colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                titleTextStyle: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: theme.lightTheme.colorScheme.onSurface,
+                  letterSpacing: 0.5,
+                ),
+                headerPadding: const EdgeInsets.symmetric(vertical: 16.0),
+              ),
+              firstDay: today.subtract(const Duration(days: 29)),
+              lastDay: today.add(const Duration(days: 30)),
+              focusedDay: _focusedDay,
+              // Updated to use our new event loader method
+              eventLoader: _getEventsForDay,
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDay, day);
+              },
+              onDaySelected: _onDaySelected,
+              calendarFormat: _calendarFormat,
+              onFormatChanged: (format) {
+                setState(() {
+                  _calendarFormat = format;
+                });
+              },
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false,
+                weekendTextStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+                defaultTextStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+                markerDecoration: BoxDecoration(
+                  color: theme.lightTheme.colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                markerSize: 8,
+                markersMaxCount: 3,
+                todayDecoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.lightTheme.colorScheme.secondary,
+                      theme.lightTheme.colorScheme.secondary.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.lightTheme.colorScheme.secondary.withValues(alpha: 0.3),
+                      spreadRadius: 1,
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                selectedDecoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.lightTheme.colorScheme.primary,
+                      theme.lightTheme.colorScheme.primary.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.4),
+                      spreadRadius: 1,
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                todayTextStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+                selectedTextStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+                cellPadding: const EdgeInsets.all(8.0),
+                cellMargin: const EdgeInsets.all(4.0),
+              ),
+              daysOfWeekStyle: DaysOfWeekStyle(
+                weekdayStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+                weekendStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ),
           ),
-      )
-    ]);
+        ),
+
+        const SizedBox(height: 8),
+
+        // Assignments Section with Enhanced Design
+        Expanded(
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: _assignmentsToday.isNotEmpty
+                  ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                    child: Text(
+                      _getDateHeaderText(_selectedDay),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: theme.lightTheme.colorScheme.onSurface,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Assignments list
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      itemCount: _assignmentsToday.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        Assignment assignment = _assignmentsToday[index];
+                        return AnimatedContainer(
+                          duration: Duration(milliseconds: 300 + (index * 100)),
+                          curve: Curves.easeOutCubic,
+                          margin: const EdgeInsets.only(bottom: 12.0),
+                          child: EnhancedCalendarCard(
+                            assignment: assignment,
+                            theme: theme,
+                            index: index,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              )
+                  : Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24.0),
+                      decoration: BoxDecoration(
+                        color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.event_available_rounded,
+                        size: 48,
+                        color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No ${_getDateHeaderText(_selectedDay)}",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).brightness == Brightness.light ? theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7) : theme.darkTheme?.colorScheme.onSurface.withValues(alpha: 0.7),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Enjoy your free time! 🎉",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).brightness == Brightness.light ? theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7) : theme.darkTheme?.colorScheme.onSurface.withValues(alpha: 0.7),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
+  String _getDateHeaderText(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final selectedDay = DateTime(date.year, date.month, date.day);
 
+    if (selectedDay == today) {
+      return "Today's Assignments";
+    } else if (selectedDay == tomorrow) {
+      return "Tomorrow's Assignments";
+    } else {
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return "Assignments for ${months[date.month - 1]} ${date.day}";
+    }
+  }
+}
+
+class EnhancedCalendarCard extends StatefulWidget {
+  final Assignment assignment;
+  final AppTheme theme;
+  final int index;
+
+  const EnhancedCalendarCard({
+    super.key,
+    required this.assignment,
+    required this.theme,
+    required this.index,
+  });
+
+  @override
+  State<EnhancedCalendarCard> createState() => _EnhancedCalendarCardState();
+}
+
+class _EnhancedCalendarCardState extends State<EnhancedCalendarCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _hoverController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _elevationAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.02,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeInOut,
+    ));
+    _elevationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    super.dispose();
+  }
+
+  void _onHover(bool isHovered) {
+    setState(() => _isHovered = isHovered);
+    if (isHovered) {
+      _hoverController.forward();
+    } else {
+      _hoverController.reverse();
+    }
+  }
 
   IconData _getIconForType(String type) {
     switch (type.toLowerCase()) {
@@ -130,5 +465,228 @@ class CalendarScreenState extends State<CalendarScreen>{
       default:
         return Icons.task_rounded;
     }
+  }
+
+  Color _getColorForType(String type) {
+    final colors = widget.theme.courseColors;
+    switch (type.toLowerCase()) {
+      case 'assignment':
+        return colors[0];
+      case 'discussion':
+        return colors[2];
+      case 'assessment':
+        return colors[4];
+      default:
+        return colors[1];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = _getColorForType(widget.assignment.type);
+    final darkerColor = Color.fromARGB(
+      cardColor.a.round(),
+      (cardColor.r * 0.85).round(),
+      (cardColor.g * 0.85).round(),
+      (cardColor.b * 0.85).round(),
+    );
+
+    final colorBrightness = _calculateBrightness(cardColor);
+    final textColor = colorBrightness > 0.5 ? Colors.black87 : Colors.white;
+    final subtextColor = colorBrightness > 0.5 ? Colors.black54 : Colors.white70;
+
+    String date = widget.assignment.dueDate?.toString().split(" ")[0] ?? "No Due Date";
+    String time = widget.assignment.dueDate?.toString().split(" ")[1].split(".")[0] ?? "";
+
+    return MouseRegion(
+      onEnter: (_) => _onHover(true),
+      onExit: (_) => _onHover(false),
+      child: AnimatedBuilder(
+        animation: _hoverController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20.0),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    cardColor,
+                    darkerColor,
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: cardColor.withValues(alpha: 0.4 + (_elevationAnimation.value * 0.2)),
+                    spreadRadius: 1 + (_elevationAnimation.value * 2),
+                    blurRadius: 8 + (_elevationAnimation.value * 4),
+                    offset: Offset(0, 4 + (_elevationAnimation.value * 2)),
+                  ),
+                  BoxShadow(
+                    color: isDarkMode
+                        ? Colors.black.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.08),
+                    spreadRadius: 0,
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Row(
+                    children: [
+                      // Enhanced Icon Container
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(
+                            alpha: colorBrightness > 0.5 ? 0.4 : 0.25,
+                          ),
+                          borderRadius: BorderRadius.circular(16.0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              spreadRadius: 0,
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _getIconForType(widget.assignment.type),
+                          size: 28,
+                          color: colorBrightness > 0.5 ? Colors.black54 : Colors.white70,
+                        ),
+                      ),
+
+                      const SizedBox(width: 16),
+
+                      // Enhanced Content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.assignment.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                                letterSpacing: 0.3,
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            if (widget.assignment.dueDate != null) ...[
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: subtextColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Due: $date",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: subtextColor,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (time.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time_rounded,
+                                      size: 14,
+                                      color: subtextColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      time,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: subtextColor,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ] else ...[
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 14,
+                                    color: subtextColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "No due date",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: subtextColor,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                      // Enhanced Type Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12.0,
+                          vertical: 6.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(
+                            alpha: colorBrightness > 0.5 ? 0.3 : 0.2,
+                          ),
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        child: Text(
+                          widget.assignment.type.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: colorBrightness > 0.5 ? Colors.black54 : Colors.white70,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  double _calculateBrightness(Color color) {
+    return (0.587 * color.r + 0.299 * color.g + 0.114 * color.b) / 255;
   }
 }

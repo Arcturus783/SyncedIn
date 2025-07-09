@@ -396,8 +396,7 @@ AppTheme sunset = AppTheme(
       ),
     ),
 
-    courseColors: const [
-      Color.fromARGB(255, 69, 26, 3),      // Deep Twilight
+    courseColors: const [ // Deep Twilight
       Color.fromARGB(255, 120, 53, 15),    // Burnt Sienna
       Color.fromARGB(255, 194, 65, 12),    // Terracotta
       Color.fromARGB(255, 234, 88, 12),    // Burnt Orange
@@ -412,6 +411,7 @@ AppTheme sunset = AppTheme(
       Color.fromARGB(255, 244, 114, 182),  // Magenta
       Color.fromARGB(255, 196, 181, 253),  // Lavender
       Color.fromARGB(255, 129, 140, 248),  // Violet Twilight
+      Color.fromARGB(255, 138, 128, 254),  //purple
     ]
 );
 
