@@ -570,6 +570,8 @@ class ThemeManager extends ChangeNotifier{
     }
 }
 
+final metallicProvider = StateProvider<bool>((ref) => true);
+
 final currentThemeProvider = Provider<AppTheme>((ref) {
   final selectedThemeId = ref.watch(themeProvider);
   return ThemeManager.getTheme(selectedThemeId);

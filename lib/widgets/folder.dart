@@ -64,8 +64,8 @@ class _FolderState extends ConsumerState<Folder>
 
     // Navigate to assignment viewer when folder is tapped
     if(widget.courseName == 'Today' || widget.courseName == 'Tomorrow' ||
-       widget.courseName == 'This Week' || widget.courseName == 'Overdue' ||
-       widget.courseName == 'No Date/Other'){
+        widget.courseName == 'This Week' || widget.courseName == 'Overdue' ||
+        widget.courseName == 'No Date/Other'){
       timeBased = true;
     } else {
       timeBased = false;
@@ -99,6 +99,7 @@ class _FolderState extends ConsumerState<Folder>
   @override
   Widget build(BuildContext context) {
     final theme = ref.watch(currentThemeProvider);
+    final isMetallic = ref.watch(metallicProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -108,16 +109,30 @@ class _FolderState extends ConsumerState<Folder>
     // Responsive height
     final folderHeight = screenWidth < 600 ? 120.0 : 140.0;
 
-    // Create a more subtle darker variation for gradient
-    final darkerColor = Color.fromARGB(
-      folderColor.a.round(),
-      (folderColor.r * 0.85).round(),
-      (folderColor.g * 0.85).round(),
-      (folderColor.b * 0.85).round(),
-    );
+    // Create different color variations based on metallic/matte preference
+    final Color primaryColor;
+    final Color? secondaryColor;
+
+    if (isMetallic) {
+      // Metallic look - keep current gradient approach
+      primaryColor = folderColor;
+      secondaryColor = Color.fromARGB(
+        folderColor.a.round(),
+        (folderColor.r * 0.85).round(),
+        (folderColor.g * 0.85).round(),
+        (folderColor.b * 0.85).round(),
+      );
+    } else {
+      // Matte look - slightly reduce saturation while keeping vibrancy
+      final HSLColor hsl = HSLColor.fromColor(folderColor);
+      primaryColor = hsl.withSaturation(hsl.saturation * 0.85).withLightness(
+          hsl.lightness > 0.5 ? hsl.lightness * 0.95 : hsl.lightness * 1.05
+      ).toColor();
+      secondaryColor = null; // No gradient for matte look
+    }
 
     // Determine text and icon colors for optimal contrast
-    final colorBrightness = _calculateBrightness(folderColor);
+    final colorBrightness = _calculateBrightness(primaryColor);
     final textColor = colorBrightness > 0.5
         ? Colors.black87
         : Colors.white;
@@ -138,30 +153,32 @@ class _FolderState extends ConsumerState<Folder>
               height: folderHeight,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20.0),
-                // Simplified gradient - just main color to slightly darker
-                gradient: LinearGradient(
+                // Conditional decoration based on metallic preference
+                gradient: isMetallic && secondaryColor != null
+                    ? LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    folderColor,
-                    darkerColor,
-                  ],
-                ),
+                  colors: [primaryColor, secondaryColor],
+                )
+                    : null,
+                color: isMetallic ? null : primaryColor, // Solid color for matte
                 boxShadow: [
-                  // Primary shadow - reduced opacity
+                  // Adjust shadow intensity based on style
                   BoxShadow(
-                    color: folderColor.withValues(alpha: 0.45),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 4),
+                    color: isMetallic
+                        ? folderColor.withValues(alpha: 0.45)
+                        : primaryColor.withValues(alpha: 0.25),
+                    spreadRadius: isMetallic ? 1 : 0,
+                    blurRadius: isMetallic ? 4 : 3,
+                    offset: Offset(0, isMetallic ? 4 : 2),
                   ),
-                  // Secondary shadow for subtle depth
+                  // Secondary shadow - more subtle for matte
                   BoxShadow(
                     color: isDarkMode
-                        ? Colors.black.withValues(alpha: 0.2)
-                        : Colors.black.withValues(alpha: 0.08),
+                        ? Colors.black.withValues(alpha: isMetallic ? 0.2 : 0.15)
+                        : Colors.black.withValues(alpha: isMetallic ? 0.08 : 0.05),
                     spreadRadius: 0,
-                    blurRadius: 4,
+                    blurRadius: isMetallic ? 4 : 2,
                     offset: const Offset(0, 1),
                   ),
                 ],
@@ -175,14 +192,15 @@ class _FolderState extends ConsumerState<Folder>
                   ),
                   child: Row(
                     children: [
-                      // Folder icon with simplified styling
+                      // Folder icon with styling adjusted for metallic/matte
                       Container(
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          // More solid background for icon
                           color: Colors.white.withValues(
-                              alpha: colorBrightness > 0.5 ? 0.4 : 0.25
+                              alpha: isMetallic
+                                  ? (colorBrightness > 0.5 ? 0.4 : 0.25)
+                                  : (colorBrightness > 0.5 ? 0.25 : 0.15)
                           ),
                           borderRadius: BorderRadius.circular(16.0),
                         ),
@@ -203,7 +221,7 @@ class _FolderState extends ConsumerState<Folder>
                             widget.courseName != 'This Week' &&
                             widget.courseName != 'Overdue' &&
                             widget.courseName != 'No Date/Other')
-                        ?
+                            ?
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -256,12 +274,14 @@ class _FolderState extends ConsumerState<Folder>
                         ),
                       ),
 
-                      // Arrow indicator with simplified styling
+                      // Arrow indicator with styling adjusted for metallic/matte
                       Container(
                         padding: const EdgeInsets.all(8.0),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(
-                              alpha: colorBrightness > 0.5 ? 0.3 : 0.2
+                              alpha: isMetallic
+                                  ? (colorBrightness > 0.5 ? 0.3 : 0.2)
+                                  : (colorBrightness > 0.5 ? 0.2 : 0.15)
                           ),
                           borderRadius: BorderRadius.circular(12.0),
                         ),

@@ -34,7 +34,9 @@ class Central extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: (b == Brightness.light)
           ? ref.watch(currentThemeProvider).lightTheme
-          : ref.watch(currentThemeProvider).darkTheme, //uses the theme manager to get the theme
+          : ref
+              .watch(currentThemeProvider)
+              .darkTheme, //uses the theme manager to get the theme
       home: MyHomePage(
         oauthToken: oauthToken ?? "null",
         oauthSecret: oauthSecret ?? "null",
@@ -60,7 +62,6 @@ class MyHomePage extends ConsumerStatefulWidget {
   ConsumerState<MyHomePage> createState() => _MyHomePageState();
 }
 
-
 class _MyHomePageState extends ConsumerState<MyHomePage>
     with SingleTickerProviderStateMixin {
   int currentIndex = 1; //0 is extra page, 1 is home page, 2 is settings
@@ -78,7 +79,6 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   List<Assignment> assignmentsPerDay = [];
   List<dynamic> courses = [];
   Map<String, List<Assignment>> assignments = {};
-
 
   final DateTime _focusedDay = DateTime.now();
   final DateTime _focusedDayW = DateTime.now();
@@ -118,8 +118,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     oSecret = widget.oauthSecret;
     needCourses = widget.coursesNeeded;
     am = AssignmentManager(hiveManager, oToken, oSecret);
-    courses = hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
-    if(courses == ["No Courses Found!"]) needCourses = true;
+    courses =
+        hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
+    if (courses == ["No Courses Found!"]) needCourses = true;
     initializeData();
   }
 
@@ -141,7 +142,8 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
         print("Getting courses...");
         await am.getCourses();
         setState(() {
-          courses = hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
+          courses = hiveManager.box
+              .get("courses", defaultValue: ["No Courses Found!"]);
         });
       }
 
@@ -179,7 +181,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           MaterialPageRoute(
             builder: (context) => const main_screen.MyApp(),
           ),
-              (route) => false, // Remove all previous routes
+          (route) => false, // Remove all previous routes
         );
       }
     } catch (e) {
@@ -191,19 +193,18 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           MaterialPageRoute(
             builder: (context) => const main_screen.MyApp(),
           ),
-              (route) => false,
+          (route) => false,
         );
       }
     }
   }
-
 
   List<Assignment> _getEventsToday(DateTime day) {
     List<Assignment> aTD = [];
     if (assignments.isNotEmpty) {
       for (List<Assignment> courseAssignments in assignments.values) {
         for (Assignment a in courseAssignments) {
-          if(a.dueDate == null || a.dueDate.toString().trim().isEmpty) {
+          if (a.dueDate == null || a.dueDate.toString().trim().isEmpty) {
             continue;
           }
           try {
@@ -214,7 +215,8 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
               aTD.add(a);
             }
           } catch (e) {
-            print("Error displaying events for day $day and assignment ${a.dueDate}: $e");
+            print(
+                "Error displaying events for day $day and assignment ${a.dueDate}: $e");
           }
         }
       }
@@ -279,7 +281,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           currentColor: const Color.fromARGB(255, 140, 140, 140),
           am: am,
         );
-        //return _calendarScreen();
+      //return _calendarScreen();
       case 1:
         return CourseScreen(courses: courses, am: am);
       case 2:
@@ -287,7 +289,10 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           logout: logout,
         );
       default:
-        return CourseScreen(courses: courses, am: am,);
+        return CourseScreen(
+          courses: courses,
+          am: am,
+        );
     }
   }
 
@@ -299,10 +304,11 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme = MediaQuery.of(context).platformBrightness == Brightness.dark &&
-        ref.watch(currentThemeProvider).darkTheme != null
-        ? ref.watch(currentThemeProvider).darkTheme!
-        : ref.watch(currentThemeProvider).lightTheme;
+    ThemeData theme =
+        MediaQuery.of(context).platformBrightness == Brightness.dark &&
+                ref.watch(currentThemeProvider).darkTheme != null
+            ? ref.watch(currentThemeProvider).darkTheme!
+            : ref.watch(currentThemeProvider).lightTheme;
     Color textColor = (theme.brightness == Brightness.dark)
         ? Colors.white.withValues(alpha: 0.85)
         : Colors.black.withValues(alpha: 0.85);
@@ -315,17 +321,13 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           ? const Color.fromARGB(255, 248, 248, 245)
           : const Color.fromARGB(255, 30, 30, 40),
       appBar: AppBar(
-        leading: const Icon(
-          Icons.logo_dev_rounded,
-          size: 40,
-        ),
         backgroundColor: theme.colorScheme.surface,
-        title: Text("App Name",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            )),
+        title: const Text("App Name"),
+        titleTextStyle: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+        ),
       ),
       bottomNavigationBar: NavigationBar(
           backgroundColor: theme.colorScheme.surface,
