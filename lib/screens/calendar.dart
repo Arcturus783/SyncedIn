@@ -5,6 +5,14 @@ import 'package:myapp/class_essentials/assignment.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
 import 'package:myapp/class_essentials/theme.dart';
 
+enum SortOption {
+  dueDate('Due Date'),
+  alphabetical('Alphabetical');
+
+  const SortOption(this.label);
+  final String label;
+}
+
 class CalendarScreen extends ConsumerStatefulWidget {
   final DateTime focusedDay;
   final Color currentColor;
@@ -37,6 +45,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  SortOption _currentSortOption = SortOption.dueDate; // Default to due date
 
   @override
   void initState() {
@@ -46,6 +55,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
 
     // Use the new optimized method from AssignmentManager
     _assignmentsToday = widget.am.getAssignmentsForDate(_selectedDay);
+    _applySorting();
 
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -88,11 +98,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
       _focusedDay = focusedDay;
       // Use the optimized method for getting assignments for the selected date
       _assignmentsToday = widget.am.getAssignmentsForDate(selectedDay);
+      _applySorting();
     });
 
     // Trigger a subtle animation when changing days
     _fadeController.reset();
     _fadeController.forward();
+  }
+
+  void _applySorting() {
+    if (_currentSortOption == SortOption.dueDate) {
+      sortByDueDate(_assignmentsToday);
+    } else {
+      sortByName(_assignmentsToday);
+    }
+  }
+
+  void sortByName(List<Assignment> assignments) {
+    assignments.sort((a, b) => a.title.compareTo(b.title));
+  }
+
+  void sortByDueDate(List<Assignment> assignments) {
+    assignments.sort((a, b) {
+      if (a.dueDate == null && b.dueDate == null) return 0;
+      if (a.dueDate == null) return 1;
+      if (b.dueDate == null) return -1;
+
+      int dateComparison = a.dueDate!.compareTo(b.dueDate!);
+
+      if (dateComparison == 0) {
+        return a.title.compareTo(b.title);
+      }
+      return dateComparison;
+    });
   }
 
   // Updated event loader to work with the new AssignmentManager structure
@@ -143,6 +181,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
             borderRadius: BorderRadius.circular(24.0),
             child: TableCalendar(
               availableCalendarFormats: const {CalendarFormat.month: "Month"},
+
               headerStyle: HeaderStyle(
                 titleCentered: true,
                 formatButtonVisible: false,
@@ -195,11 +234,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
               },
               calendarStyle: CalendarStyle(
                 outsideDaysVisible: false,
-                weekendTextStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w500,
-                ),
                 defaultTextStyle: TextStyle(
+                  color: theme.lightTheme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+                weekendTextStyle: TextStyle(
                   color: theme.lightTheme.colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                   fontSize: 16,
@@ -291,17 +331,112 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
                   ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date header
+                  // Date header and sort dropdown
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                    child: Text(
-                      _getDateHeaderText(_selectedDay),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: theme.lightTheme.colorScheme.onSurface,
-                        letterSpacing: 0.3,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _getDateHeaderText(_selectedDay),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: theme.lightTheme.colorScheme.onSurface,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        // Sort dropdown
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                theme.lightTheme.colorScheme.primary.withValues(alpha: 0.08),
+                                theme.lightTheme.colorScheme.primary.withValues(alpha: 0.12),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12.0),
+                            border: Border.all(
+                              color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.2),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                                spreadRadius: 0,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.sort_rounded,
+                                size: 16,
+                                color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Sort:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<SortOption>(
+                                  value: _currentSortOption,
+                                  onChanged: (SortOption? newValue) {
+                                    if (newValue != null) {
+                                      setState(() {
+                                        _currentSortOption = newValue;
+                                        _applySorting();
+                                      });
+                                    }
+                                  },
+                                  items: SortOption.values.map<DropdownMenuItem<SortOption>>((SortOption value) {
+                                    return DropdownMenuItem<SortOption>(
+                                      value: value,
+                                      child: Text(
+                                        value.label,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.lightTheme.colorScheme.onSurface,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  icon: Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 16,
+                                    color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.lightTheme.colorScheme.onSurface,
+                                    letterSpacing: 0.3,
+                                  ),
+                                  dropdownColor: isDarkMode
+                                      ? theme.darkTheme?.colorScheme.surface ?? theme.lightTheme.colorScheme.surface
+                                      : theme.lightTheme.colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
