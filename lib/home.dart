@@ -323,10 +323,10 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       appBar: AppBar(
         backgroundColor: theme.colorScheme.surface,
         title: const Text("App Name"),
-        titleTextStyle: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.bold,
-          color: textColor,
+        titleTextStyle: const TextStyle(
+          fontSize: 32,
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
         ),
       ),
       bottomNavigationBar: NavigationBar(

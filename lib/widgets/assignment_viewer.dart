@@ -28,8 +28,29 @@ class AssignmentViewer extends StatefulWidget {
   State<AssignmentViewer> createState() => _AssignmentViewerState();
 }
 
-class _AssignmentViewerState extends State<AssignmentViewer> {
+class _AssignmentViewerState extends State<AssignmentViewer> with TickerProviderStateMixin {
   SortOption _currentSortOption = SortOption.dueDate; // Default to due date
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,134 +104,332 @@ class _AssignmentViewerState extends State<AssignmentViewer> {
     final appBarTextColor = _getTextColorForBackground(widget.courseColor);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.courseName),
-        backgroundColor: widget.courseColor,
-        foregroundColor: appBarTextColor,
-        elevation: 0,
-        iconTheme: IconThemeData(color: appBarTextColor),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.15),
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-            stops: const [0.15, 0.85],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Sort dropdown
-              if (assignments.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16.0),
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? widget.courseColor.withValues(alpha: 0.1)
-                        : widget.courseColor.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12.0),
-                    border: Border.all(
-                      color: widget.courseColor.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 120.0,
+            floating: false,
+            pinned: true,
+            backgroundColor: widget.courseColor,
+            foregroundColor: appBarTextColor,
+            elevation: 0,
+            iconTheme: IconThemeData(color: appBarTextColor),
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                widget.courseName,
+                style: TextStyle(
+                  color: appBarTextColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
+              ),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.courseColor,
+                      widget.courseColor.withValues(alpha: 0.8),
+                    ],
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.sort_rounded,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Sort by:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -30,
+                      top: -30,
+                      child: Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: appBarTextColor.withValues(alpha: 0.1),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<SortOption>(
-                          value: _currentSortOption,
-                          onChanged: (SortOption? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _currentSortOption = newValue;
-                              });
-                            }
-                          },
-                          items: SortOption.values.map<DropdownMenuItem<SortOption>>((SortOption value) {
-                            return DropdownMenuItem<SortOption>(
-                              value: value,
-                              child: Text(
-                                value.label,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    Positioned(
+                      left: -50,
+                      bottom: -50,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: appBarTextColor.withValues(alpha: 0.05),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    widget.courseColor.withValues(alpha: isDarkMode ? 0.05 : 0.08),
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                  stops: const [0.0, 0.3],
+                ),
+              ),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      // Assignment count header with modern styling
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              widget.courseColor.withValues(alpha: isDarkMode ? 0.15 : 0.1),
+                              widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20.0),
+                          border: Border.all(
+                            color: widget.courseColor.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10.0),
+                              decoration: BoxDecoration(
+                                color: widget.courseColor.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              child: Icon(
+                                assignments.isEmpty ? Icons.check_circle_outline : Icons.assignment_outlined,
+                                color: widget.courseColor,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    assignments.isEmpty ? 'All Clear!' : '${assignments.length} Assignment${assignments.length != 1 ? 's' : ''}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Sort dropdown with enhanced styling
+                      if (assignments.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 24.0),
+                          padding: const EdgeInsets.all(4.0),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                widget.courseColor.withValues(alpha: isDarkMode ? 0.12 : 0.08),
+                                widget.courseColor.withValues(alpha: isDarkMode ? 0.06 : 0.04),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16.0),
+                            border: Border.all(
+                              color: widget.courseColor.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: widget.courseColor.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8.0),
+                                  decoration: BoxDecoration(
+                                    color: widget.courseColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                  child: Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                    color: widget.courseColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Sort by:',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<SortOption>(
+                                      value: _currentSortOption,
+                                      onChanged: (SortOption? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            _currentSortOption = newValue;
+                                          });
+                                        }
+                                      },
+                                      items: SortOption.values.map<DropdownMenuItem<SortOption>>((SortOption value) {
+                                        return DropdownMenuItem<SortOption>(
+                                          value: value,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                            child: Text(
+                                              value.label,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context).colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      icon: Container(
+                                        padding: const EdgeInsets.all(4.0),
+                                        decoration: BoxDecoration(
+                                          color: widget.courseColor.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6.0),
+                                        ),
+                                        child: Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 20,
+                                          color: widget.courseColor,
+                                        ),
+                                      ),
+                                      dropdownColor: Theme.of(context).colorScheme.surface,
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      elevation: 8,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // Assignment grid or empty state
+                      assignments.isEmpty
+                          ? Container(
+                        height: 300,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.05),
+                              widget.courseColor.withValues(alpha: isDarkMode ? 0.04 : 0.02),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(24.0),
+                          border: Border.all(
+                            color: widget.courseColor.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20.0),
+                                decoration: BoxDecoration(
+                                  color: widget.courseColor.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.celebration_outlined,
+                                  size: 48,
+                                  color: widget.courseColor,
                                 ),
                               ),
-                            );
-                          }).toList(),
-                          icon: Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                              const SizedBox(height: 24),
+                              Text(
+                                noneText,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Take a well-deserved break! 🎉',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          dropdownColor: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(8.0),
                         ),
+                      )
+                          : GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          childAspectRatio: isTablet ? 2.0 : 2.5, // Increased height for better fit
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                        ),
+                        itemCount: assignments.length,
+                        itemBuilder: (context, index) {
+                          return AnimatedContainer(
+                            duration: Duration(milliseconds: 300 + (index * 100)),
+                            curve: Curves.easeOutBack,
+                            child: AssignmentCard(
+                              assignment: assignments[index],
+                              courseColor: widget.courseColor,
+                              index: index,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
-              // Assignment grid or empty state
-              Expanded(
-                child: assignments.isEmpty
-                    ? Center(
-                  child: Text(
-                    noneText,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-                    : GridView.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    childAspectRatio: isTablet ? 2.5 : 3.0,
-                    crossAxisSpacing: 16.0,
-                    mainAxisSpacing: 16.0,
-                  ),
-                  itemCount: assignments.length,
-                  itemBuilder: (context, index) {
-                    return AssignmentCard(
-                      assignment: assignments[index],
-                      courseColor: widget.courseColor,
-                    );
-                  },
-                ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -240,15 +459,44 @@ class _AssignmentViewerState extends State<AssignmentViewer> {
   }
 }
 
-class AssignmentCard extends StatelessWidget {
+class AssignmentCard extends StatefulWidget {
   final Assignment assignment;
   final Color courseColor;
+  final int index;
 
   const AssignmentCard({
     super.key,
     required this.assignment,
     required this.courseColor,
+    required this.index,
   });
+
+  @override
+  State<AssignmentCard> createState() => _AssignmentCardState();
+}
+
+class _AssignmentCardState extends State<AssignmentCard> with SingleTickerProviderStateMixin {
+  late AnimationController _hoverController;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _hoverController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -258,11 +506,11 @@ class AssignmentCard extends StatelessWidget {
     // Create a more reliable card background that works in both light and dark modes
     final cardColor = isDarkMode
         ? Color.alphaBlend(
-      courseColor.withValues(alpha: 0.15),
+      widget.courseColor.withValues(alpha: 0.12),
       theme.colorScheme.surface,
     )
         : Color.alphaBlend(
-      courseColor.withValues(alpha: 0.08),
+      widget.courseColor.withValues(alpha: 0.06),
       theme.colorScheme.surface,
     );
 
@@ -272,88 +520,266 @@ class AssignmentCard extends StatelessWidget {
 
     // Icon container background that adapts to theme
     final iconContainerColor = isDarkMode
-        ? courseColor.withValues(alpha: 0.2)
-        : courseColor.withValues(alpha: 0.15);
+        ? widget.courseColor.withValues(alpha: 0.25)
+        : widget.courseColor.withValues(alpha: 0.15);
 
     // Icon color that ensures visibility
     final iconColor = isDarkMode
-        ? courseColor.withValues(alpha: 0.9)
-        : courseColor;
+        ? widget.courseColor.withValues(alpha: 0.9)
+        : widget.courseColor;
 
-    return Card(
-      elevation: isDarkMode ? 2 : 4,
-      shadowColor: courseColor.withValues(alpha: isDarkMode ? 0.15 : 0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      color: cardColor,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(
-            color: courseColor.withValues(alpha: isDarkMode ? 0.2 : 0.3),
-            width: 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8.0),
-                    decoration: BoxDecoration(
-                      color: iconContainerColor,
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    child: Icon(
-                      _getIconForType(assignment.type),
-                      size: 20,
-                      color: iconColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      assignment.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: primaryTextColor,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    size: 16,
-                    color: secondaryTextColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      assignment.dueDate != null
-                          ? "Due: ${assignment.dueDate!.toLocal().toString().split(' ')[0]} at ${assignment.dueDate!.toLocal().toString().split(' ')[1].split('.')[0]}"
-                          : "No Due Date",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: secondaryTextColor,
-                      ),
-                    ),
-                  ),
-                ],
+    // Completion status colors
+    final completionColor = widget.assignment.completed ? Colors.green : Colors.grey;
+    final completionBackgroundColor = widget.assignment.completed
+        ? Colors.green.withValues(alpha: isDarkMode ? 0.2 : 0.1)
+        : Colors.grey.withValues(alpha: isDarkMode ? 0.2 : 0.1);
+
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: GestureDetector(
+        onTapDown: (_) {
+          _hoverController.forward();
+          setState(() {
+            _isHovered = true;
+          });
+        },
+        onTapUp: (_) {
+          _hoverController.reverse();
+          setState(() {
+            _isHovered = false;
+          });
+        },
+        onTapCancel: () {
+          _hoverController.reverse();
+          setState(() {
+            _isHovered = false;
+          });
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20.0),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                cardColor,
+                cardColor.withValues(alpha: 0.8),
+              ],
+            ),
+            border: Border.all(
+              color: widget.courseColor.withValues(alpha: _isHovered ? 0.4 : 0.2),
+              width: _isHovered ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.courseColor.withValues(alpha: _isHovered ? 0.2 : 0.08),
+                blurRadius: _isHovered ? 20 : 12,
+                offset: Offset(0, _isHovered ? 8 : 4),
+                spreadRadius: _isHovered ? 2 : 0,
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20.0),
+            child: Stack(
+              children: [
+                // Completion marker positioned at top-right
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(6.0),
+                    decoration: BoxDecoration(
+                      color: completionBackgroundColor,
+                      borderRadius: BorderRadius.circular(10.0),
+                      border: Border.all(
+                        color: completionColor.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: completionColor.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      widget.assignment.completed
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      size: 18,
+                      color: completionColor,
+                    ),
+                  ),
+                ),
+                // Subtle background pattern
+                Positioned(
+                  right: -20,
+                  top: -20,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.courseColor.withValues(alpha: 0.05),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: -30,
+                  bottom: -30,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.courseColor.withValues(alpha: 0.03),
+                    ),
+                  ),
+                ),
+                // Main content with optimized layout
+                Padding(
+                  padding: const EdgeInsets.all(16.0), // Reduced padding
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row with icon and title (adjusted for completion marker)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 32.0), // Space for completion marker
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Hero(
+                              tag: 'assignment_icon_${widget.assignment.title}_${widget.index}',
+                              child: Container(
+                                padding: const EdgeInsets.all(10.0), // Slightly smaller
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      iconContainerColor,
+                                      iconContainerColor.withValues(alpha: 0.8),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(14.0),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: widget.courseColor.withValues(alpha: 0.1),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  _getIconForType(widget.assignment.type),
+                                  size: 22,
+                                  color: iconColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.assignment.title,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: widget.assignment.completed
+                                          ? primaryTextColor.withValues(alpha: 0.6)
+                                          : primaryTextColor,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                                    decoration: BoxDecoration(
+                                      color: widget.courseColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6.0),
+                                    ),
+                                    child: Text(
+                                      widget.assignment.type.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: widget.courseColor,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height:10),
+                      // Inline due date display (more compact)
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6.0),
+                            decoration: BoxDecoration(
+                              color: widget.courseColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: Icon(
+                              Icons.schedule_rounded,
+                              size: 14,
+                              color: widget.courseColor,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: widget.assignment.dueDate != null
+                                ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "${widget.assignment.dueDate!.toLocal().toString().split(' ')[0]}",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: widget.assignment.completed
+                                        ? primaryTextColor.withValues(alpha: 0.5)
+                                        : primaryTextColor,
+                                  ),
+                                ),
+                                Text(
+                                  "${widget.assignment.dueDate!.toLocal().toString().split(' ')[1].split('.')[0]}",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: widget.assignment.completed
+                                        ? secondaryTextColor.withValues(alpha: 0.5)
+                                        : secondaryTextColor,
+                                  ),
+                                ),
+                              ],
+                            )
+                                : Text(
+                              "No Due Date",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: widget.assignment.completed
+                                    ? secondaryTextColor.withValues(alpha: 0.5)
+                                    : secondaryTextColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -52,11 +52,12 @@ class SettingsScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.8),
-            theme.colorScheme.primary.withValues(alpha: 0.6),
+            theme.colorScheme.primary.withValues(alpha: 0.7),
+            theme.colorScheme.primary,
+            theme.colorScheme.primary.withValues(alpha: 0.7),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -362,7 +363,12 @@ class SettingsScreen extends ConsumerWidget {
       ) {
     return GestureDetector(
       onTap: () {
-        ref.read(themeProvider.notifier).changeTheme(themeId);
+        if(appTheme.isPremium){
+          ThemeData? a = Theme.of(context).brightness == Brightness.light ? appTheme.lightTheme : appTheme.darkTheme;
+          _showComingSoonSnackbar(context, a!);
+        } else{
+          ref.read(themeProvider.notifier).changeTheme(themeId);
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -426,11 +432,11 @@ class SettingsScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (appTheme.isPremium)
-                          const Icon(
-                            Icons.lock_sharp,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width:10),
+                        const Icon(
+                          Icons.lock_sharp,
+                          color: Colors.grey,
+                        ),
+                      const SizedBox(width:10),
 
                       if (isSelected && !appTheme.isPremium)
                         Container(
@@ -490,6 +496,61 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showComingSoonSnackbar(BuildContext context, ThemeData theme) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Coming Soon!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    'Premium themes will be available soon',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: theme.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(milliseconds: 1500),
+        elevation: 8,
       ),
     );
   }

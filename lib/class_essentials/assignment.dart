@@ -10,10 +10,13 @@ class Assignment extends HiveObject{
   final DateTime? dueDate;
   @HiveField(2)
   final String type;
+  @HiveField(3)
+  final bool completed;
 
   Assignment({
     required this.title,
     required this.type,
     this.dueDate,
+    required this.completed,
   });
 }

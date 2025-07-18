@@ -311,6 +311,7 @@ class AssignmentManager {
                   title: a["title"] ?? "Untitled Assignment",
                   dueDate: dueDate,
                   type: a['type'] ?? "assignment",
+                  completed: a['completed'] == 1,
                 ));
                 relevantAssignments++;
 
@@ -523,7 +524,7 @@ class AssignmentManager {
   }
 
   List<Assignment> getAssignmentsDueTomorrow() {
-    return getAssignmentsForDate(DateTime.now().add(Duration(days: 1)));
+    return getAssignmentsForDate(DateTime.now().add(const Duration(days: 1)));
   }
 
   List<Assignment> getUpcomingAssignments({int days = 7}) {
