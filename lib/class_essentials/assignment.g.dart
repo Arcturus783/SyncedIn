@@ -21,13 +21,14 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
       type: fields[2] as String,
       dueDate: fields[1] as DateTime?,
       completed: fields[3] as bool,
+      visible: fields[4] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Assignment obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.title)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
       ..writeByte(2)
       ..write(obj.type)
       ..writeByte(3)
-      ..write(obj.completed);
+      ..write(obj.completed)
+      ..writeByte(4)
+      ..write(obj.visible);
   }
 
   @override

@@ -11,12 +11,15 @@ class Assignment extends HiveObject{
   @HiveField(2)
   final String type;
   @HiveField(3)
-  final bool completed;
+  bool completed;
+  @HiveField(4)
+  bool visible;
 
   Assignment({
     required this.title,
     required this.type,
     this.dueDate,
     required this.completed,
+    required this.visible,
   });
 }

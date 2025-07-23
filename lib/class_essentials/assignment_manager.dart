@@ -85,6 +85,10 @@ class AssignmentManager {
     }
   }
 
+  void saveAssignments()async{
+    await hiveManager.box.put("assignments", assignments);
+  }
+
   /// Build the optimized data structures for fast lookups
   void _buildOptimizedStructures() {
     _sortedAssignments.clear();
@@ -312,6 +316,7 @@ class AssignmentManager {
                   dueDate: dueDate,
                   type: a['type'] ?? "assignment",
                   completed: a['completed'] == 1,
+                  visible: true,
                 ));
                 relevantAssignments++;
 
@@ -385,6 +390,8 @@ class AssignmentManager {
     return oauth1.Client(platform.signatureMethod,
         clientCredentials, oauth1.Credentials(oToken, oSecret));
   }
+
+
 
   // ==============================================================================
   // NEW OPTIMIZED QUERY METHODS USING BINARY SEARCH

@@ -316,6 +316,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
+
     return Scaffold(
       backgroundColor: isLightTheme
           ? const Color.fromARGB(255, 248, 248, 245)
@@ -323,9 +324,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       appBar: AppBar(
         backgroundColor: theme.colorScheme.surface,
         title: const Text("App Name"),
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           fontSize: 32,
-          color: Colors.black,
+          color: theme.colorScheme.onSurface,
           fontWeight: FontWeight.w700,
         ),
       ),

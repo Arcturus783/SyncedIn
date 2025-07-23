@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myapp/class_essentials/assignment.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/home.dart';
 
 enum SortOption {
   dueDate('Due Date'),
@@ -32,6 +33,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   SortOption _currentSortOption = SortOption.dueDate; // Default to due date
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  List<Assignment> filteredAssignments = [];
 
   @override
   void initState() {
@@ -92,12 +94,12 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
       assignments = widget.am.getAssignmentsForCourse(widget.courseName);
     }
     print("Assignments for ${widget.courseName}: ${assignments.length}");
-
+    filteredAssignments = assignments.where((item) => item.visible).toList();
     // Apply sorting based on current selection
     if (_currentSortOption == SortOption.dueDate) {
-      sortByDueDate(assignments);
+      sortByDueDate(filteredAssignments);
     } else {
-      sortByName(assignments);
+      sortByName(filteredAssignments);
     }
 
     // Calculate app bar text color based on course color
@@ -117,6 +119,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 widget.courseName,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: appBarTextColor,
                   fontWeight: FontWeight.w700,
@@ -210,7 +213,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
                               child: Icon(
-                                assignments.isEmpty ? Icons.check_circle_outline : Icons.assignment_outlined,
+                                filteredAssignments.isEmpty ? Icons.check_circle_outline : Icons.assignment_outlined,
                                 color: widget.courseColor,
                                 size: 24,
                               ),
@@ -221,7 +224,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    assignments.isEmpty ? 'All Clear!' : '${assignments.length} Assignment${assignments.length != 1 ? 's' : ''}',
+                                    filteredAssignments.isEmpty ? 'All Clear!' : '${filteredAssignments.length} Assignment${filteredAssignments.length != 1 ? 's' : ''}',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w700,
@@ -237,7 +240,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                       const SizedBox(height: 24),
 
                       // Sort dropdown with enhanced styling
-                      if (assignments.isNotEmpty)
+                      if (filteredAssignments.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(bottom: 24.0),
                           padding: const EdgeInsets.all(4.0),
@@ -343,7 +346,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                         ),
 
                       // Assignment grid or empty state
-                      assignments.isEmpty
+                      filteredAssignments.isEmpty
                           ? Container(
                         height: 300,
                         decoration: BoxDecoration(
@@ -410,17 +413,30 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                           crossAxisSpacing: 16.0,
                           mainAxisSpacing: 16.0,
                         ),
-                        itemCount: assignments.length,
+                        itemCount: filteredAssignments.length,
                         itemBuilder: (context, index) {
-                          return AnimatedContainer(
-                            duration: Duration(milliseconds: 300 + (index * 100)),
-                            curve: Curves.easeOutBack,
-                            child: AssignmentCard(
-                              assignment: assignments[index],
-                              courseColor: widget.courseColor,
-                              index: index,
-                            ),
+
+
+                          return Dismissible(
+                            key: Key(filteredAssignments[index].title),
+                            onDismissed: (direction){
+                              setState((){
+                                filteredAssignments.removeAt(index);
+                              });
+                              saveAssignments();
+                            },
+                            child: AnimatedContainer(
+                              duration: Duration(milliseconds: 300 + (index * 100)),
+                              curve: Curves.easeOutBack,
+                              child: AssignmentCard(
+                                assignment: filteredAssignments[index],
+                                courseColor: widget.courseColor,
+                                index: index,
+                              ),
+                            )
                           );
+
+
                         },
                       ),
                     ],
@@ -432,6 +448,22 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
         ],
       ),
     );
+  }
+
+  void saveAssignments(){
+    // Fix the type casting issue
+    Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
+
+    // Convert to the proper type
+    Map<String, List<Assignment>> assignments = {};
+    rawAssignments.forEach((key, value) {
+      if (key is String && value is List) {
+        assignments[key] = value.cast<Assignment>();
+      }
+    });
+
+    // Save back to Hive
+    hiveManager.box.put("assignments", assignments);
   }
 
   Color _getTextColorForBackground(Color background) {
@@ -446,16 +478,17 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   void sortByDueDate(List<Assignment> as) {
     as.sort((a, b) {
       if (a.dueDate == null && b.dueDate == null) return 0;
-      if (a.dueDate == null) return 1;
-      if (b.dueDate == null) return -1;
+      if (a.dueDate == null) return -1;
+      if (b.dueDate == null) return 1;
 
-      int dateComparison = a.dueDate!.compareTo(b.dueDate!);
+      int dateComparison = b.dueDate!.compareTo(a.dueDate!);
 
       if (dateComparison == 0) {
         return a.title.compareTo(b.title);
       }
       return dateComparison;
     });
+
   }
 }
 
@@ -475,10 +508,13 @@ class AssignmentCard extends StatefulWidget {
   State<AssignmentCard> createState() => _AssignmentCardState();
 }
 
-class _AssignmentCardState extends State<AssignmentCard> with SingleTickerProviderStateMixin {
+class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStateMixin {
   late AnimationController _hoverController;
+  AnimationController? _checkboxController;
   late Animation<double> _scaleAnimation;
+  Animation<double>? _checkboxAnimation;
   bool _isHovered = false;
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -487,15 +523,62 @@ class _AssignmentCardState extends State<AssignmentCard> with SingleTickerProvid
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
+    _checkboxController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
       CurvedAnimation(parent: _hoverController, curve: Curves.easeInOut),
     );
+    _checkboxAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _checkboxController!, curve: Curves.elasticOut),
+    );
+
+    // Initialize checkbox animation state
+    if (widget.assignment.completed) {
+      _checkboxController!.value = 1.0;
+    }
+
+    _isInitialized = true;
   }
 
   @override
   void dispose() {
     _hoverController.dispose();
+    _checkboxController?.dispose();
     super.dispose();
+  }
+
+  void _handleCheckboxTap() {
+    if (!_isInitialized || _checkboxController == null) return;
+
+    setState(() {
+      widget.assignment.completed = !widget.assignment.completed;
+
+      if (widget.assignment.completed) {
+        _checkboxController!.forward();
+      } else {
+        _checkboxController!.reverse();
+      }
+
+      saveAssignments();
+    });
+  }
+
+  void saveAssignments(){
+    // Fix the type casting issue
+    Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
+
+    // Convert to the proper type
+    Map<String, List<Assignment>> assignments = {};
+    rawAssignments.forEach((key, value) {
+      if (key is String && value is List) {
+        assignments[key] = value.cast<Assignment>();
+      }
+    });
+
+    // Save back to Hive
+    hiveManager.box.put("assignments", assignments);
   }
 
   @override
@@ -528,258 +611,331 @@ class _AssignmentCardState extends State<AssignmentCard> with SingleTickerProvid
         ? widget.courseColor.withValues(alpha: 0.9)
         : widget.courseColor;
 
-    // Completion status colors
-    final completionColor = widget.assignment.completed ? Colors.green : Colors.grey;
-    final completionBackgroundColor = widget.assignment.completed
-        ? Colors.green.withValues(alpha: isDarkMode ? 0.2 : 0.1)
-        : Colors.grey.withValues(alpha: isDarkMode ? 0.2 : 0.1);
-
     return ScaleTransition(
       scale: _scaleAnimation,
-      child: GestureDetector(
-        onTapDown: (_) {
-          _hoverController.forward();
-          setState(() {
-            _isHovered = true;
-          });
-        },
-        onTapUp: (_) {
-          _hoverController.reverse();
-          setState(() {
-            _isHovered = false;
-          });
-        },
-        onTapCancel: () {
-          _hoverController.reverse();
-          setState(() {
-            _isHovered = false;
-          });
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20.0),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                cardColor,
-                cardColor.withValues(alpha: 0.8),
-              ],
-            ),
-            border: Border.all(
-              color: widget.courseColor.withValues(alpha: _isHovered ? 0.4 : 0.2),
-              width: _isHovered ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: widget.courseColor.withValues(alpha: _isHovered ? 0.2 : 0.08),
-                blurRadius: _isHovered ? 20 : 12,
-                offset: Offset(0, _isHovered ? 8 : 4),
-                spreadRadius: _isHovered ? 2 : 0,
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20.0),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              cardColor,
+              cardColor.withValues(alpha: 0.8),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20.0),
-            child: Stack(
-              children: [
-                // Completion marker positioned at top-right
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(6.0),
-                    decoration: BoxDecoration(
-                      color: completionBackgroundColor,
-                      borderRadius: BorderRadius.circular(10.0),
-                      border: Border.all(
-                        color: completionColor.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: completionColor.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+          border: Border.all(
+            color: widget.courseColor.withValues(alpha: _isHovered ? 0.4 : 0.2),
+            width: _isHovered ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: widget.courseColor.withValues(alpha: _isHovered ? 0.2 : 0.08),
+              blurRadius: _isHovered ? 20 : 12,
+              offset: Offset(0, _isHovered ? 8 : 4),
+              spreadRadius: _isHovered ? 2 : 0,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Card content with exclusion for checkbox area
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20.0),
+                  onTapDown: (_) {
+                    _hoverController.forward();
+                    setState(() {
+                      _isHovered = true;
+                    });
+                  },
+                  onTapUp: (_) {
+                    _hoverController.reverse();
+                    setState(() {
+                      _isHovered = false;
+                    });
+                  },
+                  onTapCancel: () {
+                    _hoverController.reverse();
+                    setState(() {
+                      _isHovered = false;
+                    });
+                  },
+                  // Exclude the checkbox area from this InkWell
+                  excludeFromSemantics: false,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20.0),
+                    child: Stack(
+                      children: [
+                        // Subtle background pattern
+                        Positioned(
+                          right: -20,
+                          top: -20,
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.courseColor.withValues(alpha: 0.05),
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Icon(
-                      widget.assignment.completed
-                          ? Icons.check_circle_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      size: 18,
-                      color: completionColor,
-                    ),
-                  ),
-                ),
-                // Subtle background pattern
-                Positioned(
-                  right: -20,
-                  top: -20,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: widget.courseColor.withValues(alpha: 0.05),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: -30,
-                  bottom: -30,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: widget.courseColor.withValues(alpha: 0.03),
-                    ),
-                  ),
-                ),
-                // Main content with optimized layout
-                Padding(
-                  padding: const EdgeInsets.all(16.0), // Reduced padding
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header row with icon and title (adjusted for completion marker)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 32.0), // Space for completion marker
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Hero(
-                              tag: 'assignment_icon_${widget.assignment.title}_${widget.index}',
-                              child: Container(
-                                padding: const EdgeInsets.all(10.0), // Slightly smaller
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      iconContainerColor,
-                                      iconContainerColor.withValues(alpha: 0.8),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(14.0),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: widget.courseColor.withValues(alpha: 0.1),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 3),
+                        Positioned(
+                          left: -30,
+                          bottom: -30,
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.courseColor.withValues(alpha: 0.03),
+                            ),
+                          ),
+                        ),
+                        // Main content with optimized layout
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header row with icon and title (adjusted for completion marker)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 40.0), // Space for completion marker
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Hero(
+                                      tag: 'assignment_icon_${widget.assignment.title}_${widget.index}',
+                                      child: Container(
+                                        padding: const EdgeInsets.all(10.0),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              iconContainerColor,
+                                              iconContainerColor.withValues(alpha: 0.8),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(14.0),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: widget.courseColor.withValues(alpha: 0.1),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          _getIconForType(widget.assignment.type),
+                                          size: 22,
+                                          color: iconColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          AnimatedDefaultTextStyle(
+                                            duration: const Duration(milliseconds: 300),
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: widget.assignment.completed
+                                                  ? primaryTextColor.withValues(alpha: 0.6)
+                                                  : primaryTextColor,
+                                              height: 1.2,
+                                              decoration: widget.assignment.completed
+                                                  ? TextDecoration.lineThrough
+                                                  : TextDecoration.none,
+                                              decorationColor: primaryTextColor.withValues(alpha: 0.5),
+                                              decorationThickness: 2,
+                                            ),
+                                            child: Text(
+                                              widget.assignment.title,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                                            decoration: BoxDecoration(
+                                              color: widget.courseColor.withValues(
+                                                alpha: widget.assignment.completed ? 0.06 : 0.12,
+                                              ),
+                                              borderRadius: BorderRadius.circular(6.0),
+                                            ),
+                                            child: Text(
+                                              widget.assignment.type.toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: widget.assignment.completed
+                                                    ? widget.courseColor.withValues(alpha: 0.6)
+                                                    : widget.courseColor,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  _getIconForType(widget.assignment.type),
-                                  size: 22,
-                                  color: iconColor,
-                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 10),
+                              // Inline due date display (more compact)
+                              Row(
                                 children: [
-                                  Text(
-                                    widget.assignment.title,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: widget.assignment.completed
-                                          ? primaryTextColor.withValues(alpha: 0.6)
-                                          : primaryTextColor,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                                    padding: const EdgeInsets.all(6.0),
                                     decoration: BoxDecoration(
-                                      color: widget.courseColor.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(6.0),
+                                      color: widget.courseColor.withValues(
+                                        alpha: widget.assignment.completed ? 0.05 : 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8.0),
                                     ),
-                                    child: Text(
-                                      widget.assignment.type.toUpperCase(),
+                                    child: Icon(
+                                      Icons.schedule_rounded,
+                                      size: 14,
+                                      color: widget.assignment.completed
+                                          ? widget.courseColor.withValues(alpha: 0.6)
+                                          : widget.courseColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: widget.assignment.dueDate != null
+                                        ? Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "${widget.assignment.dueDate!.toLocal().toString().split(' ')[0]}",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: widget.assignment.completed
+                                                ? primaryTextColor.withValues(alpha: 0.5)
+                                                : primaryTextColor,
+                                          ),
+                                        ),
+                                        Text(
+                                          "${widget.assignment.dueDate!.toLocal().toString().split(' ')[1].split('.')[0]}",
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                            color: widget.assignment.completed
+                                                ? secondaryTextColor.withValues(alpha: 0.5)
+                                                : secondaryTextColor,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                        : Text(
+                                      "No Due Date",
                                       style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: widget.courseColor,
-                                        letterSpacing: 0.5,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: widget.assignment.completed
+                                            ? secondaryTextColor.withValues(alpha: 0.5)
+                                            : secondaryTextColor,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height:10),
-                      // Inline due date display (more compact)
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6.0),
-                            decoration: BoxDecoration(
-                              color: widget.courseColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: Icon(
-                              Icons.schedule_rounded,
-                              size: 14,
-                              color: widget.courseColor,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: widget.assignment.dueDate != null
-                                ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "${widget.assignment.dueDate!.toLocal().toString().split(' ')[0]}",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: widget.assignment.completed
-                                        ? primaryTextColor.withValues(alpha: 0.5)
-                                        : primaryTextColor,
-                                  ),
-                                ),
-                                Text(
-                                  "${widget.assignment.dueDate!.toLocal().toString().split(' ')[1].split('.')[0]}",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: widget.assignment.completed
-                                        ? secondaryTextColor.withValues(alpha: 0.5)
-                                        : secondaryTextColor,
-                                  ),
-                                ),
-                              ],
-                            )
-                                : Text(
-                              "No Due Date",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: widget.assignment.completed
-                                    ? secondaryTextColor.withValues(alpha: 0.5)
-                                    : secondaryTextColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
+            // Checkbox positioned on top with its own gesture handling
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: _handleCheckboxTap,
+                behavior: HitTestBehavior.opaque, // Ensures this captures taps
+                child: Container(
+                  // Add some padding to increase tap area
+                  padding: const EdgeInsets.all(4.0),
+                  child: _isInitialized && _checkboxAnimation != null
+                      ? AnimatedBuilder(
+                    animation: _checkboxAnimation!,
+                    builder: (context, child) {
+                      return _buildCheckboxContainer();
+                    },
+                  )
+                      : _buildCheckboxContainer(), // Fallback without animation
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxContainer() {
+    final theme = Theme.of(context);
+    final isCompleted = widget.assignment.completed;
+    final completionProgress = _isInitialized && _checkboxAnimation != null
+        ? _checkboxAnimation!.value
+        : (isCompleted ? 1.0 : 0.0);
+
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10.0),
+        gradient: isCompleted
+            ? LinearGradient(
+          colors: [
+            Colors.green.shade400,
+            Colors.green.shade600,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        )
+            : LinearGradient(
+          colors: [
+            theme.colorScheme.surface,
+            theme.colorScheme.surface.withValues(alpha: 0.8),
+          ],
+        ),
+        border: Border.all(
+          color: isCompleted
+              ? Colors.green.shade600
+              : theme.colorScheme.outline.withValues(alpha: 0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          if (isCompleted)
+            BoxShadow(
+              color: Colors.green.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      child: Center(
+        child: AnimatedScale(
+          scale: completionProgress,
+          duration: const Duration(milliseconds: 200),
+          child: Icon(
+            Icons.check_rounded,
+            size: 18,
+            color: isCompleted
+                ? Colors.white
+                : Colors.transparent,
+            weight: 800,
           ),
         ),
       ),
