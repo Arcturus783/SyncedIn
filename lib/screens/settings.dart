@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/theme.dart';
+import 'package:myapp/class_essentials/hive.dart';
 
 class SettingsScreen extends ConsumerWidget {
   final Future<void> Function(BuildContext) logout;
+  final HiveBoxManager hiveManager;
+  final bool autoHide;
+  final bool visibleCalendar;
 
   const SettingsScreen({
     super.key,
     required this.logout,
+    required this.hiveManager,
+    required this.autoHide,
+    required this.visibleCalendar,
   });
 
   @override
@@ -29,6 +36,10 @@ class SettingsScreen extends ConsumerWidget {
               children: [
                 // Header Section
                 _buildHeader(context, theme),
+                const SizedBox(height: 32),
+
+                // Functionality Section
+                _buildFunctionalitySection(context, ref, currentTheme),
                 const SizedBox(height: 32),
 
                 // Theme Section
@@ -102,6 +113,243 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFunctionalitySection(BuildContext context, WidgetRef ref, AppTheme currentTheme) {
+    final contextTheme = Theme.of(context);
+    final isDark = contextTheme.brightness == Brightness.dark;
+    final theme = isDark ? currentTheme.darkTheme : currentTheme.lightTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme!.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.tune_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Functionality',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Customize app behavior',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Visible Calendar Assignments Toggle
+          _buildFunctionalityToggle(
+            context: context,
+            ref: ref,
+            theme: theme,
+            title: 'Visible Calendar Assignments',
+            subtitle: 'Show hidden assignments in the calendar',
+            icon: Icons.visibility_rounded,
+            isEnabled: visibleCalendar,
+            onTap: () {
+              ref.read(visibleCalendarAssignmentsProvider.notifier).state =
+              !ref.read(visibleCalendarAssignmentsProvider);
+
+              hiveManager.box.put("visibleCalendar", ref.read(autoHideAssignmentsProvider.notifier).state);
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Auto-Hide Assignments Toggle
+          _buildFunctionalityToggle(
+            context: context,
+            ref: ref,
+            theme: theme,
+            title: 'Auto-Hide Assignments',
+            subtitle: 'Hide assignments upon completion',
+            icon: Icons.auto_awesome_rounded,
+            isEnabled: autoHide,
+            onTap: () {
+              ref.read(autoHideAssignmentsProvider.notifier).state =
+              !ref.read(autoHideAssignmentsProvider);
+
+              hiveManager.box.put("autoHide", ref.read(autoHideAssignmentsProvider.notifier).state);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFunctionalityToggle({
+    required BuildContext context,
+    required WidgetRef ref,
+    required ThemeData theme,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isEnabled,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.08),
+            theme.colorScheme.primary.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: theme.colorScheme.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 56,
+              height: 32,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: isEnabled
+                      ? [
+                    theme.colorScheme.primary,
+                    theme.colorScheme.primary.withValues(alpha: 0.8),
+                  ]
+                      : [
+                    theme.colorScheme.outline.withValues(alpha: 0.3),
+                    theme.colorScheme.outline.withValues(alpha: 0.2),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isEnabled
+                        ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 200),
+                    left: isEnabled ? 28 : 4,
+                    top: 4,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: isEnabled
+                          ? Icon(
+                        Icons.check,
+                        color: theme.colorScheme.primary,
+                        size: 12,
+                      )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -581,12 +829,12 @@ class SettingsScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.account_circle_rounded,
-                  color: theme.colorScheme.secondary,
+                  color: theme.colorScheme.primary,
                   size: 24,
                 ),
               ),
@@ -742,6 +990,12 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+// StateProvider for Visible Calendar Assignments
+final visibleCalendarAssignmentsProvider = StateProvider<bool>((ref) => false);
+
+// StateProvider for Auto-Hide Assignments
+final autoHideAssignmentsProvider = StateProvider<bool>((ref) => false);
+
 // Custom painter for theme pattern background
 class ThemePatternPainter extends CustomPainter {
   final List<Color> colors;
@@ -750,7 +1004,8 @@ class ThemePatternPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
+    final paint = Paint()
+      ..style = PaintingStyle.fill;
 
     // Create a subtle pattern using the theme's course colors
     for (int i = 0; i < colors.length && i < 6; i++) {

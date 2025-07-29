@@ -91,6 +91,11 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
   late AssignmentManager am;
 
+  bool autoHide = hiveManager.box.get("autoHide", defaultValue: false);
+  bool visibleCalendar = hiveManager.box.get("visibleCalendar", defaultValue: false);
+
+
+
   @override
   void initState() {
     super.initState();
@@ -283,15 +288,19 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
         );
       //return _calendarScreen();
       case 1:
-        return CourseScreen(courses: courses, am: am);
+        return CourseScreen(courses: courses, am: am, autoHide: autoHide,);
       case 2:
         return SettingsScreen(
           logout: logout,
+          hiveManager: hiveManager,
+          autoHide: autoHide,
+          visibleCalendar: visibleCalendar,
         );
       default:
         return CourseScreen(
           courses: courses,
           am: am,
+          autoHide: autoHide,
         );
     }
   }

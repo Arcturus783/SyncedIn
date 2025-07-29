@@ -10,13 +10,15 @@ class Folder extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final AssignmentManager am;
   final int indexNum;
+  bool autoHide;
 
-  const Folder({
+   Folder({
     super.key,
     required this.courseName,
     required this.colorIndex,
     required this.am,
     required this.indexNum,
+    required this.autoHide,
     this.onTap,
   });
 
@@ -91,6 +93,7 @@ class _FolderState extends ConsumerState<Folder>
           courseColor: folderColor,
           am: widget.am,
           timeBased: timeBased,
+          autoHide: widget.autoHide,
         ),
       ),
     );

@@ -7,6 +7,7 @@ import 'package:myapp/class_essentials/assignment_manager.dart';
 class CourseScreen extends ConsumerStatefulWidget {
   final List<dynamic> courses;
   final AssignmentManager am;
+  bool autoHide;
   /*
   final List<String> courses = [
     'Mathematics',
@@ -25,7 +26,7 @@ class CourseScreen extends ConsumerStatefulWidget {
     'Environmental Science',
   ];
   */
-  CourseScreen({Key? key, required this.courses, required this.am}) : super(key: key);
+  CourseScreen({Key? key, required this.courses, required this.am, required this.autoHide}) : super(key: key);
 
   @override
   ConsumerState<CourseScreen> createState() => _CourseScreenState();
@@ -169,6 +170,7 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     colorIndex: colorIndex,
                     am: widget.am,
                     indexNum: 0,
+                    autoHide: widget.autoHide,
                   ),
                 );
               })
@@ -186,6 +188,7 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     colorIndex: colorIndex,
                     am: widget.am,
                     indexNum: index + 1,
+                    autoHide: widget.autoHide,
                   ),
                 );
               }),

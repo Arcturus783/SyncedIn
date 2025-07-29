@@ -16,6 +16,7 @@ class AssignmentViewer extends StatefulWidget {
   final Color courseColor;
   final AssignmentManager am;
   final bool timeBased;
+  final bool autoHide;
 
   const AssignmentViewer({
     super.key,
@@ -23,6 +24,7 @@ class AssignmentViewer extends StatefulWidget {
     required this.courseColor,
     required this.am,
     required this.timeBased,
+    required this.autoHide,
   });
 
   @override
@@ -34,6 +36,8 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   List<Assignment> filteredAssignments = [];
+  List<Assignment> disAssignments = [];
+  bool displayVisible = false;
 
   @override
   void initState() {
@@ -95,13 +99,13 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
     }
     print("Assignments for ${widget.courseName}: ${assignments.length}");
     filteredAssignments = assignments.where((item) => item.visible).toList();
+    disAssignments = assignments.where((item) => !item.visible).toList();
     // Apply sorting based on current selection
     if (_currentSortOption == SortOption.dueDate) {
       sortByDueDate(filteredAssignments);
     } else {
       sortByName(filteredAssignments);
     }
-
     // Calculate app bar text color based on course color
     final appBarTextColor = _getTextColorForBackground(widget.courseColor);
 
@@ -234,6 +238,21 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                 ],
                               ),
                             ),
+                            GestureDetector(
+                                onTap: (){
+                                  setState((){
+                                    displayVisible = !displayVisible;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(10.0),
+                                  child: Icon(
+                                    displayVisible ? Icons.visibility : Icons.visibility_off,
+                                    color: widget.courseColor,
+                                    size: 24,
+                                  ),
+                                ),
+                            ),
                           ],
                         ),
                       ),
@@ -346,98 +365,56 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                         ),
 
                       // Assignment grid or empty state
-                      filteredAssignments.isEmpty
-                          ? Container(
-                        height: 300,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.05),
-                              widget.courseColor.withValues(alpha: isDarkMode ? 0.04 : 0.02),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(24.0),
-                          border: Border.all(
-                            color: widget.courseColor.withValues(alpha: 0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(20.0),
-                                decoration: BoxDecoration(
-                                  color: widget.courseColor.withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.celebration_outlined,
-                                  size: 48,
-                                  color: widget.courseColor,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                noneText,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Take a well-deserved break! 🎉',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                          : GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          childAspectRatio: isTablet ? 2.0 : 2.5, // Increased height for better fit
-                          crossAxisSpacing: 16.0,
-                          mainAxisSpacing: 16.0,
-                        ),
-                        itemCount: filteredAssignments.length,
-                        itemBuilder: (context, index) {
+                      AssignmentGrid(
+                        assignments: displayVisible ? disAssignments : filteredAssignments,
+                        courseColor: widget.courseColor,
+                        autoHide: widget.autoHide,
+                        isTablet: isTablet,
+                        noneText: displayVisible
+                            ? "No hidden assignments!"
+                            : noneText,
+                        onAssignmentChanged: () {
+                          setState(() {
+                            // Refresh the lists when assignments change
+                            if(widget.timeBased){
+                              switch(widget.courseName){
+                                case 'Today':
+                                  assignments = widget.am.getAssignmentsDueToday();
+                                  break;
+                                case 'Tomorrow':
+                                  assignments = widget.am.getAssignmentsDueTomorrow();
+                                  break;
+                                case 'This Week':
+                                  assignments = widget.am.getAssignmentsDueLaterThisWeek();
+                                  break;
+                                case 'Overdue':
+                                  assignments = widget.am.getOverdueAssignments();
+                                  break;
+                                case 'No Date/Other':
+                                  assignments = widget.am.getOtherAssignments();
+                                  break;
+                                default:
+                                  assignments = [];
+                              }
+                            } else{
+                              assignments = widget.am.getAssignmentsForCourse(widget.courseName);
+                            }
+                            filteredAssignments = assignments.where((item) => item.visible).toList();
+                            disAssignments = assignments.where((item) => !item.visible).toList();
 
-
-                          return Dismissible(
-                            key: Key(filteredAssignments[index].title),
-                            onDismissed: (direction){
-                              setState((){
-                                filteredAssignments.removeAt(index);
-                              });
-                              saveAssignments();
-                            },
-                            child: AnimatedContainer(
-                              duration: Duration(milliseconds: 300 + (index * 100)),
-                              curve: Curves.easeOutBack,
-                              child: AssignmentCard(
-                                assignment: filteredAssignments[index],
-                                courseColor: widget.courseColor,
-                                index: index,
-                              ),
-                            )
-                          );
-
-
+                            // Apply sorting
+                            if (_currentSortOption == SortOption.dueDate) {
+                              sortByDueDate(filteredAssignments);
+                              sortByDueDate(disAssignments);
+                            } else {
+                              sortByName(filteredAssignments);
+                              sortByName(disAssignments);
+                            }
+                          });
                         },
+                        allowDismiss: !displayVisible, // Don't allow dismissing hidden assignments
+                        dismissActionText: displayVisible ? 'Show Assignment' : 'Hide Assignment',
+                        dismissIcon: displayVisible ? Icons.visibility : Icons.visibility_off_rounded,
                       ),
                     ],
                   ),
@@ -496,12 +473,14 @@ class AssignmentCard extends StatefulWidget {
   final Assignment assignment;
   final Color courseColor;
   final int index;
+  final bool autoHide;
 
   const AssignmentCard({
     super.key,
     required this.assignment,
     required this.courseColor,
     required this.index,
+    required this.autoHide,
   });
 
   @override
@@ -559,6 +538,10 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
         _checkboxController!.forward();
       } else {
         _checkboxController!.reverse();
+      }
+
+      if(widget.autoHide){
+        widget.assignment.visible = false;
       }
 
       saveAssignments();
@@ -953,5 +936,285 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
       default:
         return Icons.task_rounded;
     }
+  }
+}
+
+
+class AssignmentGrid extends StatefulWidget {
+  final List<Assignment> assignments;
+  final Color courseColor;
+  final bool isTablet;
+  final String noneText;
+  final VoidCallback onAssignmentChanged;
+  final bool allowDismiss;
+  final String dismissActionText;
+  final IconData dismissIcon;
+  final bool autoHide;
+
+  const AssignmentGrid({
+    super.key,
+    required this.assignments,
+    required this.courseColor,
+    required this.isTablet,
+    required this.noneText,
+    required this.onAssignmentChanged,
+    required this.autoHide,
+    this.allowDismiss = true,
+    this.dismissActionText = 'Hide Assignment',
+    this.dismissIcon = Icons.visibility_off_rounded,
+  });
+
+  @override
+  State<AssignmentGrid> createState() => _AssignmentGridState();
+}
+
+class _AssignmentGridState extends State<AssignmentGrid> {
+  late List<Assignment> _assignments;
+
+  @override
+  void initState() {
+    super.initState();
+    _assignments = List.from(widget.assignments);
+  }
+
+  @override
+  void didUpdateWidget(AssignmentGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.assignments != oldWidget.assignments) {
+      _assignments = List.from(widget.assignments);
+    }
+  }
+
+  void _saveAssignments() {
+    // Fix the type casting issue
+    Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
+
+    // Convert to the proper type
+    Map<String, List<Assignment>> assignments = {};
+    rawAssignments.forEach((key, value) {
+      if (key is String && value is List) {
+        assignments[key] = value.cast<Assignment>();
+      }
+    });
+
+    // Save back to Hive
+    hiveManager.box.put("assignments", assignments);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final crossAxisCount = widget.isTablet ? 2 : 1;
+
+    // Show empty state if no assignments
+    if (_assignments.isEmpty) {
+      return Container(
+        height: 300,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.05),
+              widget.courseColor.withValues(alpha: isDarkMode ? 0.04 : 0.02),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24.0),
+          border: Border.all(
+            color: widget.courseColor.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20.0),
+                decoration: BoxDecoration(
+                  color: widget.courseColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.celebration_outlined,
+                  size: 48,
+                  color: widget.courseColor,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                widget.noneText,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Take a well-deserved break! 🎉',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show assignment grid
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: widget.isTablet ? 2.0 : 2.5,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+      ),
+      itemCount: _assignments.length,
+      itemBuilder: (context, index) {
+        // All assignments should be dismissible now
+        // The background will change based on visibility state
+        return Stack(
+          children: [
+            // Background swipe indicator - changes based on assignment visibility
+            Positioned.fill(
+              child: _buildDismissBackground(),
+            ),
+            // Dismissible assignment card
+            Dismissible(
+              key: Key(_assignments[index].title),
+              direction: DismissDirection.horizontal,
+              background: Container(), // Empty container since we handle background above
+              onDismissed: (direction) {
+                setState(() {
+                  // Toggle visibility based on current state
+                  _assignments[index].visible = !_assignments[index].visible;
+                  _assignments.removeAt(index);
+                });
+                _saveAssignments();
+                widget.onAssignmentChanged();
+              },
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300 + (index * 100)),
+                curve: Curves.easeOutBack,
+                child: AssignmentCard(
+                  assignment: _assignments[index],
+                  courseColor: widget.courseColor,
+                  index: index,
+                  autoHide: widget.autoHide,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDismissBackground() {
+    // Check if we're showing hidden assignments (they should be made visible)
+    final isShowingHidden = _assignments.isNotEmpty && !_assignments.first.visible;
+
+    // Colors for hide action (red) vs show action (gray/neutral)
+    final backgroundColor = isShowingHidden ? Colors.grey : Colors.red;
+    final iconColor = isShowingHidden ? Colors.grey.shade700 : Colors.red;
+    final actionText = isShowingHidden ? 'Show Assignment' : widget.dismissActionText;
+    final subText = isShowingHidden ? 'Swipe to make visible' : 'Swipe to remove from view';
+
+    return Container(
+      margin: const EdgeInsets.all(2.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            backgroundColor.withValues(alpha: 0.8),
+            backgroundColor.withValues(alpha: 0.6),
+            backgroundColor.withValues(alpha: 0.4),
+          ],
+          stops: const [0.0, 0.7, 1.0],
+        ),
+        borderRadius: BorderRadius.circular(20.0),
+        boxShadow: [
+          BoxShadow(
+            color: backgroundColor.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 24),
+          Container(
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              isShowingHidden ? Icons.visibility : widget.dismissIcon,
+              color: iconColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  actionText,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 1,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 24),
+        ],
+      ),
+    );
   }
 }
