@@ -85,7 +85,7 @@ class _FolderState extends ConsumerState<Folder>
   void _navigateToAssignments() {
     final theme = ref.read(currentThemeProvider);
     final folderColor = theme.courseColors[widget.colorIndex % theme.courseColors.length];
-
+    print("State of autoHide: ${widget.autoHide}");
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AssignmentViewer(

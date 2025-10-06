@@ -98,6 +98,15 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
       assignments = widget.am.getAssignmentsForCourse(widget.courseName);
     }
     print("Assignments for ${widget.courseName}: ${assignments.length}");
+
+    if (widget.autoHide) {
+      // If autoHide is enabled, completed assignments should not be visible by default
+      for (Assignment assignment in assignments) {
+        if (assignment.completed) {
+          assignment.visible = false;
+        }
+      }
+    }
     filteredAssignments = assignments.where((item) => item.visible).toList();
     disAssignments = assignments.where((item) => !item.visible).toList();
     // Apply sorting based on current selection
@@ -455,8 +464,8 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   void sortByDueDate(List<Assignment> as) {
     as.sort((a, b) {
       if (a.dueDate == null && b.dueDate == null) return 0;
-      if (a.dueDate == null) return -1;
-      if (b.dueDate == null) return 1;
+      if (a.dueDate == null) return 1;
+      if (b.dueDate == null) return -1;
 
       int dateComparison = b.dueDate!.compareTo(a.dueDate!);
 
@@ -465,7 +474,6 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
       }
       return dateComparison;
     });
-
   }
 }
 
@@ -474,6 +482,7 @@ class AssignmentCard extends StatefulWidget {
   final Color courseColor;
   final int index;
   final bool autoHide;
+  final VoidCallback? onAssignmentChanged; // Add this
 
   const AssignmentCard({
     super.key,
@@ -481,6 +490,7 @@ class AssignmentCard extends StatefulWidget {
     required this.courseColor,
     required this.index,
     required this.autoHide,
+    this.onAssignmentChanged, // Add this
   });
 
   @override
@@ -536,16 +546,21 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
 
       if (widget.assignment.completed) {
         _checkboxController!.forward();
+        // If autoHide is enabled and assignment is now completed, hide it
+        if (widget.autoHide) {
+          widget.assignment.visible = false;
+        }
       } else {
         _checkboxController!.reverse();
-      }
-
-      if(widget.autoHide){
-        widget.assignment.visible = false;
+        // If unmarking as complete, make it visible again
+        widget.assignment.visible = true;
       }
 
       saveAssignments();
     });
+
+    // Notify parent to refresh
+    widget.onAssignmentChanged?.call();
   }
 
   void saveAssignments(){
@@ -1078,41 +1093,34 @@ class _AssignmentGridState extends State<AssignmentGrid> {
         mainAxisSpacing: 16.0,
       ),
       itemCount: _assignments.length,
+      // In the _AssignmentGridState.build() method, replace the itemBuilder with this:
+
       itemBuilder: (context, index) {
-        // All assignments should be dismissible now
-        // The background will change based on visibility state
-        return Stack(
-          children: [
-            // Background swipe indicator - changes based on assignment visibility
-            Positioned.fill(
-              child: _buildDismissBackground(),
+        return AnimatedContainer(
+          duration: Duration(milliseconds: 300 + (index * 100)),
+          curve: Curves.easeOutBack,
+          child: Dismissible(
+            key: Key(_assignments[index].title),
+            direction: DismissDirection.horizontal,
+            background: _buildDismissBackground(),
+            secondaryBackground: _buildDismissBackground(), // Same background for both directions
+            onDismissed: (direction) {
+              setState(() {
+                // Toggle visibility based on current state
+                _assignments[index].visible = !_assignments[index].visible;
+                _assignments.removeAt(index);
+              });
+              _saveAssignments();
+              widget.onAssignmentChanged();
+            },
+            child: AssignmentCard(
+              assignment: _assignments[index],
+              courseColor: widget.courseColor,
+              index: index,
+              autoHide: widget.autoHide,
+              onAssignmentChanged: widget.onAssignmentChanged,
             ),
-            // Dismissible assignment card
-            Dismissible(
-              key: Key(_assignments[index].title),
-              direction: DismissDirection.horizontal,
-              background: Container(), // Empty container since we handle background above
-              onDismissed: (direction) {
-                setState(() {
-                  // Toggle visibility based on current state
-                  _assignments[index].visible = !_assignments[index].visible;
-                  _assignments.removeAt(index);
-                });
-                _saveAssignments();
-                widget.onAssignmentChanged();
-              },
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: 300 + (index * 100)),
-                curve: Curves.easeOutBack,
-                child: AssignmentCard(
-                  assignment: _assignments[index],
-                  courseColor: widget.courseColor,
-                  index: index,
-                  autoHide: widget.autoHide,
-                ),
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -1129,7 +1137,7 @@ class _AssignmentGridState extends State<AssignmentGrid> {
     final subText = isShowingHidden ? 'Swipe to make visible' : 'Swipe to remove from view';
 
     return Container(
-      margin: const EdgeInsets.all(2.0),
+      // Removed margin - Dismissible handles positioning
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,

@@ -145,184 +145,186 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     DateTime today = DateTime.now();
 
-    return Column(
-      children: [
-        // Enhanced Calendar Container
-        Container(
-          margin: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24.0),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.lightTheme.colorScheme.surface,
-                theme.lightTheme.colorScheme.surface.withValues(alpha: 0.8),
+    return CustomScrollView(
+      slivers: [
+        // Calendar Container as a sliver
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24.0),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  theme.lightTheme.colorScheme.surface,
+                  theme.lightTheme.colorScheme.surface.withValues(alpha: 0.8),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                  spreadRadius: 2,
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: isDarkMode
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.05),
+                  spreadRadius: 0,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-                spreadRadius: 2,
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: isDarkMode
-                    ? Colors.black.withValues(alpha: 0.3)
-                    : Colors.black.withValues(alpha: 0.05),
-                spreadRadius: 0,
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24.0),
-            child: TableCalendar(
-              availableCalendarFormats: const {CalendarFormat.month: "Month"},
-
-              headerStyle: HeaderStyle(
-                titleCentered: true,
-                formatButtonVisible: false,
-                leftChevronIcon: Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24.0),
+              child: TableCalendar(
+                availableCalendarFormats: const {CalendarFormat.month: "Month"},
+                headerStyle: HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  leftChevronIcon: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    child: Icon(
+                      Icons.chevron_left_rounded,
+                      color: theme.lightTheme.colorScheme.primary,
+                      size: 20,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.chevron_left_rounded,
+                  rightChevronIcon: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: theme.lightTheme.colorScheme.primary,
+                      size: 20,
+                    ),
+                  ),
+                  titleTextStyle: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: theme.lightTheme.colorScheme.onSurface,
+                    letterSpacing: 0.5,
+                  ),
+                  headerPadding: const EdgeInsets.symmetric(vertical: 16.0),
+                ),
+                firstDay: today.subtract(const Duration(days: 29)),
+                lastDay: today.add(const Duration(days: 30)),
+                focusedDay: _focusedDay,
+                eventLoader: _getEventsForDay,
+                selectedDayPredicate: (day) {
+                  return isSameDay(_selectedDay, day);
+                },
+                onDaySelected: _onDaySelected,
+                calendarFormat: _calendarFormat,
+                onFormatChanged: (format) {
+                  setState(() {
+                    _calendarFormat = format;
+                  });
+                },
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  defaultTextStyle: TextStyle(
+                    color: theme.lightTheme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                  weekendTextStyle: TextStyle(
+                    color: theme.lightTheme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                  markerDecoration: BoxDecoration(
                     color: theme.lightTheme.colorScheme.primary,
-                    size: 20,
+                    shape: BoxShape.circle,
                   ),
-                ),
-                rightChevronIcon: Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    color: theme.lightTheme.colorScheme.primary,
-                    size: 20,
-                  ),
-                ),
-                titleTextStyle: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: theme.lightTheme.colorScheme.onSurface,
-                  letterSpacing: 0.5,
-                ),
-                headerPadding: const EdgeInsets.symmetric(vertical: 16.0),
-              ),
-              firstDay: today.subtract(const Duration(days: 29)),
-              lastDay: today.add(const Duration(days: 30)),
-              focusedDay: _focusedDay,
-              // Updated to use our new event loader method
-              eventLoader: _getEventsForDay,
-              selectedDayPredicate: (day) {
-                return isSameDay(_selectedDay, day);
-              },
-              onDaySelected: _onDaySelected,
-              calendarFormat: _calendarFormat,
-              onFormatChanged: (format) {
-                setState(() {
-                  _calendarFormat = format;
-                });
-              },
-              calendarStyle: CalendarStyle(
-                outsideDaysVisible: false,
-                defaultTextStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-                weekendTextStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-                markerDecoration: BoxDecoration(
-                  color: theme.lightTheme.colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                markerSize: 8,
-                markersMaxCount: 3,
-                todayDecoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      theme.lightTheme.colorScheme.secondary,
-                      theme.lightTheme.colorScheme.secondary.withValues(alpha: 0.8),
+                  markerSize: 8,
+                  markersMaxCount: 3,
+                  todayDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        theme.lightTheme.colorScheme.secondary,
+                        theme.lightTheme.colorScheme.secondary.withValues(alpha: 0.8),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.lightTheme.colorScheme.secondary.withValues(alpha: 0.3),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.lightTheme.colorScheme.secondary.withValues(alpha: 0.3),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                  selectedDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        theme.lightTheme.colorScheme.primary,
+                        theme.lightTheme.colorScheme.primary.withValues(alpha: 0.8),
+                      ],
                     ),
-                  ],
-                ),
-                selectedDecoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      theme.lightTheme.colorScheme.primary,
-                      theme.lightTheme.colorScheme.primary.withValues(alpha: 0.8),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.4),
+                        spreadRadius: 1,
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.4),
-                      spreadRadius: 1,
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  todayTextStyle: TextStyle(
+                    color: theme.lightTheme.colorScheme.onSecondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                  selectedTextStyle: TextStyle(
+                    color: theme.lightTheme.colorScheme.onPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                  cellPadding: const EdgeInsets.all(8.0),
+                  cellMargin: const EdgeInsets.all(4.0),
                 ),
-                todayTextStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onSecondary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-                selectedTextStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-                cellPadding: const EdgeInsets.all(8.0),
-                cellMargin: const EdgeInsets.all(4.0),
-              ),
-              daysOfWeekStyle: DaysOfWeekStyle(
-                weekdayStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  letterSpacing: 0.5,
-                ),
-                weekendStyle: TextStyle(
-                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  letterSpacing: 0.5,
+                daysOfWeekStyle: DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    letterSpacing: 0.5,
+                  ),
+                  weekendStyle: TextStyle(
+                    color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
           ),
         ),
 
-        const SizedBox(height: 8),
+        SliverToBoxAdapter(
+          child: const SizedBox(height: 8),
+        ),
 
-        // Assignments Section with Enhanced Design
-        Expanded(
+        // Assignments Section with animations
+        SliverToBoxAdapter(
           child: SlideTransition(
             position: _slideAnimation,
             child: FadeTransition(
@@ -331,67 +333,78 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
                   ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date header and sort dropdown
+                  // Date header
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _getDateHeaderText(_selectedDay),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: theme.lightTheme.colorScheme.onSurface,
-                            letterSpacing: 0.3,
-                          ),
+                    child: Text(
+                      _getDateHeaderText(_selectedDay),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: theme.lightTheme.colorScheme.onSurface,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+
+                  // Sort dropdown - moved below date header with enhanced styling
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(4.0),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.lightTheme.colorScheme.primary.withValues(alpha: isDarkMode ? 0.12 : 0.08),
+                            theme.lightTheme.colorScheme.primary.withValues(alpha: isDarkMode ? 0.06 : 0.04),
+                          ],
                         ),
-                        // Sort dropdown
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                theme.lightTheme.colorScheme.primary.withValues(alpha: 0.08),
-                                theme.lightTheme.colorScheme.primary.withValues(alpha: 0.12),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12.0),
-                            border: Border.all(
-                              color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-                                spreadRadius: 0,
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                        borderRadius: BorderRadius.circular(16.0),
+                        border: Border.all(
+                          color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.sort_rounded,
-                                size: 16,
-                                color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        ],
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10.0),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Sort:',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
-                                  letterSpacing: 0.3,
-                                ),
+                              child: Icon(
+                                Icons.tune_rounded,
+                                size: 20,
+                                color: theme.lightTheme.colorScheme.primary,
                               ),
-                              const SizedBox(width: 8),
-                              DropdownButtonHideUnderline(
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Sort by:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: DropdownButtonHideUnderline(
                                 child: DropdownButton<SortOption>(
                                   value: _currentSortOption,
                                   onChanged: (SortOption? newValue) {
@@ -405,64 +418,48 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
                                   items: SortOption.values.map<DropdownMenuItem<SortOption>>((SortOption value) {
                                     return DropdownMenuItem<SortOption>(
                                       value: value,
-                                      child: Text(
-                                        value.label,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.lightTheme.colorScheme.onSurface,
-                                          letterSpacing: 0.3,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                        child: Text(
+                                          value.label,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                          ),
                                         ),
                                       ),
                                     );
                                   }).toList(),
-                                  icon: Icon(
-                                    Icons.keyboard_arrow_down_rounded,
-                                    size: 16,
-                                    color: theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(4.0),
+                                    decoration: BoxDecoration(
+                                      color: theme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6.0),
+                                    ),
+                                    child: Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      size: 20,
+                                      color: theme.lightTheme.colorScheme.primary,
+                                    ),
                                   ),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.lightTheme.colorScheme.onSurface,
-                                    letterSpacing: 0.3,
-                                  ),
-                                  dropdownColor: isDarkMode
-                                      ? theme.darkTheme?.colorScheme.surface ?? theme.lightTheme.colorScheme.surface
-                                      : theme.lightTheme.colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(8.0),
+                                  dropdownColor: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12.0),
+                                  elevation: 8,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
+
                   const SizedBox(height: 8),
-                  // Assignments list
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      itemCount: _assignmentsToday.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        Assignment assignment = _assignmentsToday[index];
-                        return AnimatedContainer(
-                          duration: Duration(milliseconds: 300 + (index * 100)),
-                          curve: Curves.easeOutCubic,
-                          margin: const EdgeInsets.only(bottom: 12.0),
-                          child: EnhancedCalendarCard(
-                            assignment: assignment,
-                            theme: theme,
-                            index: index,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
                 ],
               )
-                  : Center(
+                  : Padding(
+                padding: const EdgeInsets.symmetric(vertical: 60.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -484,7 +481,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).brightness == Brightness.light ? theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7) : theme.darkTheme?.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: Theme.of(context).brightness == Brightness.light
+                            ? theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7)
+                            : theme.darkTheme?.colorScheme.onSurface.withValues(alpha: 0.7),
                         letterSpacing: 0.3,
                       ),
                     ),
@@ -494,7 +493,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(context).brightness == Brightness.light ? theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7) : theme.darkTheme?.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: Theme.of(context).brightness == Brightness.light
+                            ? theme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7)
+                            : theme.darkTheme?.colorScheme.onSurface.withValues(alpha: 0.7),
                         letterSpacing: 0.2,
                       ),
                     ),
@@ -503,6 +504,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
               ),
             ),
           ),
+        ),
+
+        // Assignment cards as slivers
+        if (_assignmentsToday.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                    (BuildContext context, int index) {
+                  Assignment assignment = _assignmentsToday[index];
+                  // Cycle through course colors based on index
+                  final courseColor = theme.courseColors[index % theme.courseColors.length];
+
+                  return AnimatedContainer(
+                    duration: Duration(milliseconds: 300 + (index * 100)),
+                    curve: Curves.easeOutCubic,
+                    margin: const EdgeInsets.only(bottom: 12.0),
+                    child: EnhancedCalendarCard(
+                      assignment: assignment,
+                      theme: theme,
+                      index: index,
+                      courseColor: courseColor,  // Pass the color
+                    ),
+                  );
+                },
+                childCount: _assignmentsToday.length,
+              ),
+            ),
+          ),
+
+        // Bottom padding
+        SliverToBoxAdapter(
+          child: const SizedBox(height: 16),
         ),
       ],
     );
@@ -532,12 +566,14 @@ class EnhancedCalendarCard extends StatefulWidget {
   final Assignment assignment;
   final AppTheme theme;
   final int index;
+  final Color courseColor;  // Add this parameter
 
   const EnhancedCalendarCard({
     super.key,
     required this.assignment,
     required this.theme,
     required this.index,
+    required this.courseColor,  // Add this parameter
   });
 
   @override
@@ -602,24 +638,12 @@ class _EnhancedCalendarCardState extends State<EnhancedCalendarCard>
     }
   }
 
-  Color _getColorForType(String type) {
-    final colors = widget.theme.courseColors;
-    switch (type.toLowerCase()) {
-      case 'assignment':
-        return colors[0];
-      case 'discussion':
-        return colors[2];
-      case 'assessment':
-        return colors[4];
-      default:
-        return colors[1];
-    }
-  }
+  // Remove the _getColorForType method - no longer needed
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = _getColorForType(widget.assignment.type);
+    final cardColor = widget.courseColor;  // Use the passed color
     final darkerColor = Color.fromARGB(
       cardColor.a.round(),
       (cardColor.r * 0.85).round(),

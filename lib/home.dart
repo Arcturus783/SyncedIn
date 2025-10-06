@@ -288,19 +288,19 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
         );
       //return _calendarScreen();
       case 1:
-        return CourseScreen(courses: courses, am: am, autoHide: autoHide,);
+        return CourseScreen(courses: courses, am: am, autoHide: hiveManager.box.get("autoHide", defaultValue: false));
       case 2:
         return SettingsScreen(
           logout: logout,
           hiveManager: hiveManager,
-          autoHide: autoHide,
+          autoHide: hiveManager.box.get("autoHide", defaultValue: false),
           visibleCalendar: visibleCalendar,
         );
       default:
         return CourseScreen(
           courses: courses,
           am: am,
-          autoHide: autoHide,
+          autoHide: hiveManager.box.get("autoHide", defaultValue: false),
         );
     }
   }

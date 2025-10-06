@@ -459,21 +459,40 @@ class AssignmentManager {
     return dayGroups;
   }
 
-  /// Core binary search method for date ranges
   List<Assignment> _getAssignmentsInRange(DateTime startDate, DateTime endDate) {
     if (_sortedAssignments.isEmpty) return [];
 
-    // Find first assignment >= startDate
     int startIndex = _findFirstAssignmentAtOrAfter(startDate);
     if (startIndex == -1) return [];
 
-    // Find first assignment > endDate
+    // NEW: Check if startIndex points to a null date
+    if (startIndex < _sortedAssignments.length &&
+        _sortedAssignments[startIndex].dueDate == null) {
+      return []; // All remaining assignments have no due date
+    }
+
     int endIndex = _findFirstAssignmentAfter(endDate);
     if (endIndex == -1) endIndex = _sortedAssignments.length;
 
-    // Return slice
     return _sortedAssignments.sublist(startIndex, endIndex);
   }
+
+  /*
+  List<Assignment> _getAssignmentsInRange(DateTime startDate, DateTime endDate) {
+    if (_sortedAssignments.isEmpty) return [];
+
+    int startIndex = _findFirstAssignmentAtOrAfter(startDate);
+    print("DEBUG: startIndex=$startIndex for $startDate");
+
+    if (startIndex == -1) return [];
+
+    int endIndex = _findFirstAssignmentAfter(endDate);
+    print("DEBUG: endIndex=$endIndex for $endDate");
+
+    if (endIndex == -1) endIndex = _sortedAssignments.length;
+
+    return _sortedAssignments.sublist(startIndex, endIndex);
+  }*/
 
   /// Binary search for first assignment at or after target date
   int _findFirstAssignmentAtOrAfter(DateTime targetDate) {

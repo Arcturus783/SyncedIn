@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/theme.dart';
 import 'package:myapp/class_essentials/hive.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   final Future<void> Function(BuildContext) logout;
   final HiveBoxManager hiveManager;
   final bool autoHide;
@@ -18,7 +18,24 @@ class SettingsScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // Local state variables for the toggles
+  late bool _autoHideEnabled;
+  late bool _visibleCalendarEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize from constructor parameters (loaded from Hive at app startup)
+    _autoHideEnabled = widget.autoHide;
+    _visibleCalendarEnabled = widget.visibleCalendar;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentTheme = ref.watch(currentThemeProvider);
     final availableThemes = ThemeManager.getAvailableThemes();
     final theme = (Theme.of(context).brightness == Brightness.dark)
@@ -188,17 +205,19 @@ class SettingsScreen extends ConsumerWidget {
           // Visible Calendar Assignments Toggle
           _buildFunctionalityToggle(
             context: context,
-            ref: ref,
             theme: theme,
             title: 'Visible Calendar Assignments',
             subtitle: 'Show hidden assignments in the calendar',
             icon: Icons.visibility_rounded,
-            isEnabled: visibleCalendar,
+            isEnabled: _visibleCalendarEnabled,
             onTap: () {
-              ref.read(visibleCalendarAssignmentsProvider.notifier).state =
-              !ref.read(visibleCalendarAssignmentsProvider);
-
-              hiveManager.box.put("visibleCalendar", ref.read(autoHideAssignmentsProvider.notifier).state);
+              print('Visible Calendar toggle tapped. Current: $_visibleCalendarEnabled');
+              setState(() {
+                _visibleCalendarEnabled = !_visibleCalendarEnabled;
+              });
+              // Only save to Hive - no StateProvider needed
+              widget.hiveManager.box.put("visibleCalendar", _visibleCalendarEnabled);
+              print('Visible Calendar updated to: $_visibleCalendarEnabled');
             },
           ),
           const SizedBox(height: 16),
@@ -206,17 +225,19 @@ class SettingsScreen extends ConsumerWidget {
           // Auto-Hide Assignments Toggle
           _buildFunctionalityToggle(
             context: context,
-            ref: ref,
             theme: theme,
             title: 'Auto-Hide Assignments',
             subtitle: 'Hide assignments upon completion',
             icon: Icons.auto_awesome_rounded,
-            isEnabled: autoHide,
+            isEnabled: _autoHideEnabled,
             onTap: () {
-              ref.read(autoHideAssignmentsProvider.notifier).state =
-              !ref.read(autoHideAssignmentsProvider);
-
-              hiveManager.box.put("autoHide", ref.read(autoHideAssignmentsProvider.notifier).state);
+              print('Auto-Hide toggle tapped. Current: $_autoHideEnabled');
+              setState(() {
+                _autoHideEnabled = !_autoHideEnabled;
+              });
+              // Only save to Hive - no StateProvider needed
+              widget.hiveManager.box.put("autoHide", _autoHideEnabled);
+              print('Auto-Hide updated to: $_autoHideEnabled');
             },
           ),
         ],
@@ -226,7 +247,6 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildFunctionalityToggle({
     required BuildContext context,
-    required WidgetRef ref,
     required ThemeData theme,
     required String title,
     required String subtitle,
@@ -234,77 +254,96 @@ class SettingsScreen extends ConsumerWidget {
     required bool isEnabled,
     required VoidCallback onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.08),
-            theme.colorScheme.primary.withValues(alpha: 0.04),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.15),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: theme.colorScheme.primary,
-              size: 24,
-            ),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isEnabled
+                ? [
+              theme.colorScheme.primary.withValues(alpha: 0.12),
+              theme.colorScheme.primary.withValues(alpha: 0.08),
+            ]
+                : [
+              theme.colorScheme.primary.withValues(alpha: 0.06),
+              theme.colorScheme.primary.withValues(alpha: 0.03),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isEnabled
+                ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                : theme.colorScheme.primary.withValues(alpha: 0.1),
+            width: isEnabled ? 1.5 : 1,
           ),
-          const SizedBox(width: 16),
-          GestureDetector(
-            onTap: onTap,
-            child: AnimatedContainer(
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 56,
-              height: 32,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isEnabled
+                    ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                    : theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: isEnabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.primary.withValues(alpha: 0.7),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isEnabled
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Custom Toggle Switch
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              width: 60,
+              height: 34,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 gradient: LinearGradient(
                   colors: isEnabled
                       ? [
                     theme.colorScheme.primary,
-                    theme.colorScheme.primary.withValues(alpha: 0.8),
+                    theme.colorScheme.primary.withValues(alpha: 0.9),
                   ]
                       : [
+                    theme.colorScheme.outline.withValues(alpha: 0.4),
                     theme.colorScheme.outline.withValues(alpha: 0.3),
-                    theme.colorScheme.outline.withValues(alpha: 0.2),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -312,47 +351,57 @@ class SettingsScreen extends ConsumerWidget {
                 boxShadow: [
                   BoxShadow(
                     color: isEnabled
-                        ? theme.colorScheme.primary.withValues(alpha: 0.3)
-                        : Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                        ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                        : Colors.black.withValues(alpha: 0.15),
+                    blurRadius: isEnabled ? 12 : 6,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
                   AnimatedPositioned(
-                    duration: const Duration(milliseconds: 200),
-                    left: isEnabled ? 28 : 4,
-                    top: 4,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    left: isEnabled ? 28 : 2,
+                    top: 2,
                     child: Container(
-                      width: 24,
-                      height: 24,
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 4,
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: isEnabled
-                          ? Icon(
-                        Icons.check,
-                        color: theme.colorScheme.primary,
-                        size: 12,
-                      )
-                          : null,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: isEnabled
+                            ? Icon(
+                          Icons.check,
+                          key: const ValueKey('check'),
+                          color: theme.colorScheme.primary,
+                          size: 16,
+                        )
+                            : Icon(
+                          Icons.close,
+                          key: const ValueKey('close'),
+                          color: theme.colorScheme.outline,
+                          size: 16,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -906,7 +955,7 @@ class SettingsScreen extends ConsumerWidget {
           title: 'Sign Out',
           subtitle: 'Log out of your account',
           color: theme.colorScheme.error,
-          onTap: () => logout(context),
+          onTap: () => widget.logout(context),
           isDestructive: true,
         ),
       ],
@@ -989,12 +1038,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
-
-// StateProvider for Visible Calendar Assignments
-final visibleCalendarAssignmentsProvider = StateProvider<bool>((ref) => false);
-
-// StateProvider for Auto-Hide Assignments
-final autoHideAssignmentsProvider = StateProvider<bool>((ref) => false);
 
 // Custom painter for theme pattern background
 class ThemePatternPainter extends CustomPainter {
