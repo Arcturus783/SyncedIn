@@ -2,6 +2,7 @@ import '../class_essentials/assignment.dart';
 import '../class_essentials/hive.dart';
 import '../screens/settings.dart';
 import '../screens/calendar.dart';
+import '../screens/dashboard.dart';
 import 'package:flutter/material.dart';
 import 'main.dart' as main_screen;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -64,7 +65,7 @@ class MyHomePage extends ConsumerStatefulWidget {
 
 class _MyHomePageState extends ConsumerState<MyHomePage>
     with SingleTickerProviderStateMixin {
-  int currentIndex = 1; //0 is extra page, 1 is home page, 2 is settings
+  int currentIndex = 0; //0 is dashboard, 1 is calendar, 2 is assignments, 3 is settings
   String testWords = "Hello World!";
 
   late String oToken;
@@ -278,6 +279,8 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   Widget _chooseScreen(int num, double width, double height) {
     switch (num) {
       case 0:
+        return DashboardScreen(am: am);
+      case 1:
         return CalendarScreen(
           getAssignmentsForDay: getAssignmentsForDay,
           getEventsToday: _getEventsToday,
@@ -287,9 +290,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           am: am,
         );
       //return _calendarScreen();
-      case 1:
-        return CourseScreen(courses: courses, am: am, autoHide: hiveManager.box.get("autoHide", defaultValue: false));
       case 2:
+        return CourseScreen(courses: courses, am: am, autoHide: hiveManager.box.get("autoHide", defaultValue: false));
+      case 3:
         return SettingsScreen(
           logout: logout,
           hiveManager: hiveManager,
@@ -297,11 +300,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           visibleCalendar: visibleCalendar,
         );
       default:
-        return CourseScreen(
-          courses: courses,
-          am: am,
-          autoHide: hiveManager.box.get("autoHide", defaultValue: false),
-        );
+        return DashboardScreen(am: am);
     }
   }
 
@@ -349,6 +348,10 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           indicatorColor: theme.indicatorColor,
           selectedIndex: currentIndex,
           destinations: const <Widget>[
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_rounded),
+              label: "Dashboard",
+            ),
             NavigationDestination(
               icon: Icon(Icons.calendar_month_rounded),
               label: "Calendar",
