@@ -35,12 +35,34 @@ target 'Runner' do
   end
 end
 
+# Correct, merged post_install block
 post_install do |installer|
   installer.pods_project.targets.each do |target|
+    # This part sets the deployment target for all pods
     flutter_additional_ios_build_settings(target)
-    # ADD THIS LINE HERE:
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0' # Make sure this matches your platform :ios, version
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+
+    # This part specifically fixes the flutter_native_splash issue
+    if target.name == 'flutter_native_splash'
+      target.build_phases.each do |build_phase|
+        if build_phase.is_a?(Xcodeproj::Project::Object::PBXSourcesBuildPhase)
+          privacy_file = build_phase.files.find do |file|
+            file.file_ref&.path&.end_with?('PrivacyInfo.xcprivacy')
+          end
+
+          if privacy_file
+            build_phase.remove_file_reference(privacy_file.file_ref)
+            resources_phase = target.build_phases.find do |phase|
+              phase.is_a?(Xcodeproj::Project::Object::PBXResourcesBuildPhase)
+            end
+            if resources_phase
+              resources_phase.add_file_reference(privacy_file.file_ref)
+            end
+          end
+        end
+      end
     end
   end
 end
