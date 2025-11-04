@@ -372,11 +372,18 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
             ),
           // Icon in center
           Center(
-            child: Icon(
+            child:
+              ImageIcon(
+                  const AssetImage("assets/logoIcon.png"),
+                  size: 50,
+                  color: (Theme.of(context).brightness == Brightness.light) ? Colors.white : const Color.fromARGB(255, 15, 18, 20),
+              ),
+
+            /*Icon(
               Icons.scanner,
               color: Colors.white.withValues(alpha: 0.95),
               size: 26,
-            ),
+            ),*/
           ),
         ],
       ),
