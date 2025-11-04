@@ -206,7 +206,7 @@ AppTheme cac = AppTheme(
       Color.fromARGB(255, 34, 197, 94),    // Bright Green
       Color.fromARGB(255, 74, 222, 128),   // Light Green
       Color.fromARGB(255, 134, 239, 172),  // Mint Green
-      Color.fromARGB(255, 187, 247, 208),  // Pale Green
+      Color.fromARGB(255, 168, 224, 178),  // Pale Green
       Color.fromARGB(255, 165, 243, 252),  // Aqua Mint
       Color.fromARGB(255, 103, 232, 249),  // Light Cyan
       Color.fromARGB(255, 34, 211, 238),   // Cyan

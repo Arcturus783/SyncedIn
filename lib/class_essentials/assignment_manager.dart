@@ -315,7 +315,7 @@ class AssignmentManager {
                   title: a["title"] ?? "Untitled Assignment",
                   dueDate: dueDate,
                   type: a['type'] ?? "assignment",
-                  completed: a['completed'] == 1,
+                  completed: false,
                   visible: true,
                 ));
                 relevantAssignments++;
@@ -465,7 +465,7 @@ class AssignmentManager {
     int startIndex = _findFirstAssignmentAtOrAfter(startDate);
     if (startIndex == -1) return [];
 
-    // NEW: Check if startIndex points to a null date
+    // Check if startIndex points to a null date
     if (startIndex < _sortedAssignments.length &&
         _sortedAssignments[startIndex].dueDate == null) {
       return []; // All remaining assignments have no due date
@@ -474,7 +474,11 @@ class AssignmentManager {
     int endIndex = _findFirstAssignmentAfter(endDate);
     if (endIndex == -1) endIndex = _sortedAssignments.length;
 
-    return _sortedAssignments.sublist(startIndex, endIndex);
+    // IMPORTANT: Filter out any assignments with null dates
+    // This prevents null-dated assignments from appearing in date-specific queries
+    return _sortedAssignments.sublist(startIndex, endIndex)
+        .where((assignment) => assignment.dueDate != null)
+        .toList();
   }
 
   /*

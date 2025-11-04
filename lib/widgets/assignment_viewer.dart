@@ -248,19 +248,19 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                               ),
                             ),
                             GestureDetector(
-                                onTap: (){
-                                  setState((){
-                                    displayVisible = !displayVisible;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(10.0),
-                                  child: Icon(
-                                    displayVisible ? Icons.visibility : Icons.visibility_off,
-                                    color: widget.courseColor,
-                                    size: 24,
-                                  ),
+                              onTap: (){
+                                setState((){
+                                  displayVisible = !displayVisible;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(10.0),
+                                child: Icon(
+                                  displayVisible ? Icons.visibility : Icons.visibility_off,
+                                  color: widget.courseColor,
+                                  size: 24,
                                 ),
+                              ),
                             ),
                           ],
                         ),
@@ -421,9 +421,10 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                             }
                           });
                         },
-                        allowDismiss: !displayVisible, // Don't allow dismissing hidden assignments
+                        allowDismiss: !displayVisible,
                         dismissActionText: displayVisible ? 'Show Assignment' : 'Hide Assignment',
                         dismissIcon: displayVisible ? Icons.visibility : Icons.visibility_off_rounded,
+                        currentSortOption: _currentSortOption,
                       ),
                     ],
                   ),
@@ -458,16 +459,28 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   }
 
   void sortByName(List<Assignment> as){
-    as.sort((a,b) => a.title.compareTo(b.title));
+    as.sort((a,b) {
+      // Completed assignments always go to the end
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+
+      // If both have same completion status, sort alphabetically
+      return a.title.compareTo(b.title);
+    });
   }
 
   void sortByDueDate(List<Assignment> as) {
     as.sort((a, b) {
+      // Completed assignments always go to the end
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+
+      // If both have same completion status, sort by due date
       if (a.dueDate == null && b.dueDate == null) return 0;
       if (a.dueDate == null) return 1;
       if (b.dueDate == null) return -1;
 
-      int dateComparison = b.dueDate!.compareTo(a.dueDate!);
+      int dateComparison = a.dueDate!.compareTo(b.dueDate!);
 
       if (dateComparison == 0) {
         return a.title.compareTo(b.title);
@@ -482,7 +495,7 @@ class AssignmentCard extends StatefulWidget {
   final Color courseColor;
   final int index;
   final bool autoHide;
-  final VoidCallback? onAssignmentChanged; // Add this
+  final VoidCallback? onAssignmentChanged;
 
   const AssignmentCard({
     super.key,
@@ -490,7 +503,7 @@ class AssignmentCard extends StatefulWidget {
     required this.courseColor,
     required this.index,
     required this.autoHide,
-    this.onAssignmentChanged, // Add this
+    this.onAssignmentChanged,
   });
 
   @override
@@ -559,7 +572,7 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
       saveAssignments();
     });
 
-    // Notify parent to refresh
+    // Notify parent to refresh and resort
     widget.onAssignmentChanged?.call();
   }
 
@@ -881,6 +894,7 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
     );
   }
 
+
   Widget _buildCheckboxContainer() {
     final theme = Theme.of(context);
     final isCompleted = widget.assignment.completed;
@@ -965,6 +979,7 @@ class AssignmentGrid extends StatefulWidget {
   final String dismissActionText;
   final IconData dismissIcon;
   final bool autoHide;
+  final SortOption currentSortOption;
 
   const AssignmentGrid({
     super.key,
@@ -974,6 +989,7 @@ class AssignmentGrid extends StatefulWidget {
     required this.noneText,
     required this.onAssignmentChanged,
     required this.autoHide,
+    required this.currentSortOption,
     this.allowDismiss = true,
     this.dismissActionText = 'Hide Assignment',
     this.dismissIcon = Icons.visibility_off_rounded,
@@ -985,6 +1001,7 @@ class AssignmentGrid extends StatefulWidget {
 
 class _AssignmentGridState extends State<AssignmentGrid> {
   late List<Assignment> _assignments;
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
   @override
   void initState() {
@@ -996,7 +1013,9 @@ class _AssignmentGridState extends State<AssignmentGrid> {
   void didUpdateWidget(AssignmentGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.assignments != oldWidget.assignments) {
-      _assignments = List.from(widget.assignments);
+      setState(() {
+        _assignments = List.from(widget.assignments);
+      });
     }
   }
 
@@ -1014,6 +1033,37 @@ class _AssignmentGridState extends State<AssignmentGrid> {
 
     // Save back to Hive
     hiveManager.box.put("assignments", assignments);
+  }
+
+  void _sortByName(List<Assignment> as){
+    as.sort((a,b) {
+      // Completed assignments always go to the end
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+
+      // If both have same completion status, sort alphabetically
+      return a.title.compareTo(b.title);
+    });
+  }
+
+  void _sortByDueDate(List<Assignment> as) {
+    as.sort((a, b) {
+      // Completed assignments always go to the end
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+
+      // If both have same completion status, sort by due date
+      if (a.dueDate == null && b.dueDate == null) return 0;
+      if (a.dueDate == null) return 1;
+      if (b.dueDate == null) return -1;
+
+      int dateComparison = a.dueDate!.compareTo(b.dueDate!);
+
+      if (dateComparison == 0) {
+        return a.title.compareTo(b.title);
+      }
+      return dateComparison;
+    });
   }
 
   @override
@@ -1093,8 +1143,6 @@ class _AssignmentGridState extends State<AssignmentGrid> {
         mainAxisSpacing: 16.0,
       ),
       itemCount: _assignments.length,
-      // In the _AssignmentGridState.build() method, replace the itemBuilder with this:
-
       itemBuilder: (context, index) {
         return AnimatedContainer(
           duration: Duration(milliseconds: 300 + (index * 100)),
@@ -1103,10 +1151,9 @@ class _AssignmentGridState extends State<AssignmentGrid> {
             key: Key(_assignments[index].title),
             direction: DismissDirection.horizontal,
             background: _buildDismissBackground(),
-            secondaryBackground: _buildDismissBackground(), // Same background for both directions
+            secondaryBackground: _buildDismissBackground(),
             onDismissed: (direction) {
               setState(() {
-                // Toggle visibility based on current state
                 _assignments[index].visible = !_assignments[index].visible;
                 _assignments.removeAt(index);
               });

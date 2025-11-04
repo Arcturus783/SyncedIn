@@ -45,9 +45,13 @@ dependencies:
   flutter_riverpod: ^2.6.1
 
 flutter_native_splash:
-  background_image: "assets/templogo.png"
+  color: '#fd730c'
+  background_image: "assets/SplashScreen.png"
+  ios_content_mode: "scaleAspectFit"
+  android_gravity: "center"
+  #background_image: "assets/templogo.png"
   android_12:
-    image: "assets/templogoAndroid12.png"
+    image: "assets/SplashScreenAndroid.png"
   #look at this link to actually design it https://pub.dev/packages/flutter_native_splash
 
 dev_dependencies:
@@ -67,7 +71,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
+  assets:
+    - assets/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -477,7 +477,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "No ${_getDateHeaderText(_selectedDay)}",
+                      "No Assignments",
+                      //"No ${_getDateHeaderText(_selectedDay)}",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
