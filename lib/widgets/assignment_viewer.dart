@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myapp/class_essentials/assignment.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/class_essentials/taskmanager.dart';
 import 'package:myapp/home.dart';
 
 enum SortOption {
@@ -17,6 +18,7 @@ class AssignmentViewer extends StatefulWidget {
   final AssignmentManager am;
   final bool timeBased;
   final bool autoHide;
+  final TaskManager?  taskManager; // NEW: Optional task manager for adding tasks
 
   const AssignmentViewer({
     super.key,
@@ -24,7 +26,8 @@ class AssignmentViewer extends StatefulWidget {
     required this.courseColor,
     required this.am,
     required this.timeBased,
-    required this.autoHide,
+    required this. autoHide,
+    this.taskManager,
   });
 
   @override
@@ -32,7 +35,7 @@ class AssignmentViewer extends StatefulWidget {
 }
 
 class _AssignmentViewerState extends State<AssignmentViewer> with TickerProviderStateMixin {
-  SortOption _currentSortOption = SortOption.dueDate; // Default to due date
+  SortOption _currentSortOption = SortOption.dueDate;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   List<Assignment> filteredAssignments = [];
@@ -49,7 +52,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _animationController.forward();
+    _animationController. forward();
   }
 
   @override
@@ -62,28 +65,28 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
-    final crossAxisCount = isTablet ? 2 : 1;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     String noneText = "";
     List<Assignment> assignments;
-    if(widget.timeBased){
-      switch(widget.courseName){
+
+    if (widget. timeBased) {
+      switch (widget.courseName) {
         case 'Today':
-          noneText = "You have no assignments due today!";
+          noneText = "You have no assignments due today! ";
           assignments = widget.am.getAssignmentsDueToday();
           break;
         case 'Tomorrow':
           noneText = "You have no assignments due tomorrow!";
-          assignments = widget.am.getAssignmentsDueTomorrow();
+          assignments = widget.am. getAssignmentsDueTomorrow();
           break;
         case 'This Week':
           noneText = "You have no assignments due later this week!";
-          assignments = widget.am.getAssignmentsDueLaterThisWeek();
+          assignments = widget. am.getAssignmentsDueLaterThisWeek();
           break;
         case 'Overdue':
           noneText = "You have no overdue assignments!";
-          assignments = widget.am.getOverdueAssignments();
+          assignments = widget. am.getOverdueAssignments();
           break;
         case 'No Date/Other':
           noneText = "You have no assignments without a due date!";
@@ -93,29 +96,30 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
           assignments = [];
           print("Error: Unknown time-based folder ${widget.courseName}");
       }
-    } else{
+    } else {
       noneText = "You have no assignments for this course!";
       assignments = widget.am.getAssignmentsForCourse(widget.courseName);
     }
+
     print("Assignments for ${widget.courseName}: ${assignments.length}");
 
     if (widget.autoHide) {
-      // If autoHide is enabled, completed assignments should not be visible by default
       for (Assignment assignment in assignments) {
         if (assignment.completed) {
           assignment.visible = false;
         }
       }
     }
-    filteredAssignments = assignments.where((item) => item.visible).toList();
+
+    filteredAssignments = assignments. where((item) => item.visible).toList();
     disAssignments = assignments.where((item) => !item.visible).toList();
-    // Apply sorting based on current selection
-    if (_currentSortOption == SortOption.dueDate) {
+
+    if (_currentSortOption == SortOption. dueDate) {
       sortByDueDate(filteredAssignments);
     } else {
       sortByName(filteredAssignments);
     }
-    // Calculate app bar text color based on course color
+
     final appBarTextColor = _getTextColorForBackground(widget.courseColor);
 
     return Scaffold(
@@ -132,10 +136,10 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 widget.courseName,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign. center,
                 style: TextStyle(
                   color: appBarTextColor,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight. w700,
                   fontSize: 20,
                 ),
               ),
@@ -143,7 +147,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    end: Alignment. bottomRight,
                     colors: [
                       widget.courseColor,
                       widget.courseColor.withValues(alpha: 0.8),
@@ -188,8 +192,8 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    widget.courseColor.withValues(alpha: isDarkMode ? 0.05 : 0.08),
-                    Theme.of(context).scaffoldBackgroundColor,
+                    widget.courseColor. withValues(alpha: isDarkMode ? 0.05 : 0.08),
+                    Theme.of(context). scaffoldBackgroundColor,
                   ],
                   stops: const [0.0, 0.3],
                 ),
@@ -200,14 +204,14 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     children: [
-                      // Assignment count header with modern styling
+                      // Assignment count header
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              widget.courseColor.withValues(alpha: isDarkMode ? 0.15 : 0.1),
+                              widget.courseColor. withValues(alpha: isDarkMode ? 0.15 : 0.1),
                               widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.05),
                             ],
                           ),
@@ -223,11 +227,11 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                               padding: const EdgeInsets.all(10.0),
                               decoration: BoxDecoration(
                                 color: widget.courseColor.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12.0),
+                                borderRadius: BorderRadius. circular(12.0),
                               ),
                               child: Icon(
-                                filteredAssignments.isEmpty ? Icons.check_circle_outline : Icons.assignment_outlined,
-                                color: widget.courseColor,
+                                filteredAssignments. isEmpty ?  Icons.check_circle_outline : Icons.assignment_outlined,
+                                color: widget. courseColor,
                                 size: 24,
                               ),
                             ),
@@ -237,26 +241,26 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    filteredAssignments.isEmpty ? 'All Clear!' : '${filteredAssignments.length} Assignment${filteredAssignments.length != 1 ? 's' : ''}',
+                                    filteredAssignments. isEmpty ? 'All Clear!' : '${filteredAssignments.length} Assignment${filteredAssignments.length != 1 ? 's' : ''}',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w700,
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                      color: Theme.of(context). colorScheme.onSurface,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             GestureDetector(
-                              onTap: (){
-                                setState((){
-                                  displayVisible = !displayVisible;
+                              onTap: () {
+                                setState(() {
+                                  displayVisible = ! displayVisible;
                                 });
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(10.0),
                                 child: Icon(
-                                  displayVisible ? Icons.visibility : Icons.visibility_off,
+                                  displayVisible ?  Icons.visibility : Icons.visibility_off,
                                   color: widget.courseColor,
                                   size: 24,
                                 ),
@@ -267,26 +271,26 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                       ),
                       const SizedBox(height: 24),
 
-                      // Sort dropdown with enhanced styling
-                      if (filteredAssignments.isNotEmpty)
+                      // Sort dropdown
+                      if (filteredAssignments. isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(bottom: 24.0),
                           padding: const EdgeInsets.all(4.0),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                widget.courseColor.withValues(alpha: isDarkMode ? 0.12 : 0.08),
-                                widget.courseColor.withValues(alpha: isDarkMode ? 0.06 : 0.04),
+                                widget.courseColor. withValues(alpha: isDarkMode ? 0.12 : 0.08),
+                                widget.courseColor. withValues(alpha: isDarkMode ? 0.06 : 0.04),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(16.0),
-                            border: Border.all(
+                            border: Border. all(
                               color: widget.courseColor.withValues(alpha: 0.25),
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: widget.courseColor.withValues(alpha: 0.1),
+                                color: widget. courseColor.withValues(alpha: 0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -295,11 +299,11 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(12.0),
+                              color: Theme.of(context). colorScheme.surface. withValues(alpha: 0.8),
+                              borderRadius: BorderRadius. circular(12.0),
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisSize: MainAxisSize. min,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(8.0),
@@ -319,7 +323,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).colorScheme.onSurface,
+                                    color: Theme.of(context).colorScheme. onSurface,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
@@ -334,7 +338,7 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                           });
                                         }
                                       },
-                                      items: SortOption.values.map<DropdownMenuItem<SortOption>>((SortOption value) {
+                                      items: SortOption. values.map<DropdownMenuItem<SortOption>>((SortOption value) {
                                         return DropdownMenuItem<SortOption>(
                                           value: value,
                                           child: Container(
@@ -362,8 +366,8 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                                           color: widget.courseColor,
                                         ),
                                       ),
-                                      dropdownColor: Theme.of(context).colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(12.0),
+                                      dropdownColor: Theme.of(context). colorScheme.surface,
+                                      borderRadius: BorderRadius. circular(12.0),
                                       elevation: 8,
                                     ),
                                   ),
@@ -373,45 +377,42 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                           ),
                         ),
 
-                      // Assignment grid or empty state
+                      // Assignment grid
                       AssignmentGrid(
                         assignments: displayVisible ? disAssignments : filteredAssignments,
                         courseColor: widget.courseColor,
-                        autoHide: widget.autoHide,
+                        autoHide: widget. autoHide,
                         isTablet: isTablet,
-                        noneText: displayVisible
-                            ? "No hidden assignments!"
-                            : noneText,
+                        noneText: displayVisible ? "No hidden assignments!" : noneText,
                         onAssignmentChanged: () {
                           setState(() {
-                            // Refresh the lists when assignments change
-                            if(widget.timeBased){
-                              switch(widget.courseName){
+                            List<Assignment> refreshedAssignments;
+                            if (widget.timeBased) {
+                              switch (widget.courseName) {
                                 case 'Today':
-                                  assignments = widget.am.getAssignmentsDueToday();
+                                  refreshedAssignments = widget.am.getAssignmentsDueToday();
                                   break;
                                 case 'Tomorrow':
-                                  assignments = widget.am.getAssignmentsDueTomorrow();
+                                  refreshedAssignments = widget.am.getAssignmentsDueTomorrow();
                                   break;
                                 case 'This Week':
-                                  assignments = widget.am.getAssignmentsDueLaterThisWeek();
+                                  refreshedAssignments = widget.am.getAssignmentsDueLaterThisWeek();
                                   break;
                                 case 'Overdue':
-                                  assignments = widget.am.getOverdueAssignments();
+                                  refreshedAssignments = widget. am.getOverdueAssignments();
                                   break;
                                 case 'No Date/Other':
-                                  assignments = widget.am.getOtherAssignments();
+                                  refreshedAssignments = widget.am.getOtherAssignments();
                                   break;
                                 default:
-                                  assignments = [];
+                                  refreshedAssignments = [];
                               }
-                            } else{
-                              assignments = widget.am.getAssignmentsForCourse(widget.courseName);
+                            } else {
+                              refreshedAssignments = widget.am. getAssignmentsForCourse(widget.courseName);
                             }
-                            filteredAssignments = assignments.where((item) => item.visible).toList();
-                            disAssignments = assignments.where((item) => !item.visible).toList();
+                            filteredAssignments = refreshedAssignments.where((item) => item.visible). toList();
+                            disAssignments = refreshedAssignments.where((item) => !item.visible).toList();
 
-                            // Apply sorting
                             if (_currentSortOption == SortOption.dueDate) {
                               sortByDueDate(filteredAssignments);
                               sortByDueDate(disAssignments);
@@ -421,10 +422,11 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
                             }
                           });
                         },
-                        allowDismiss: !displayVisible,
+                        allowDismiss: ! displayVisible,
                         dismissActionText: displayVisible ? 'Show Assignment' : 'Hide Assignment',
-                        dismissIcon: displayVisible ? Icons.visibility : Icons.visibility_off_rounded,
+                        dismissIcon: displayVisible ? Icons.visibility : Icons. visibility_off_rounded,
                         currentSortOption: _currentSortOption,
+                        taskManager: widget.taskManager, // NEW: Pass task manager to grid
                       ),
                     ],
                   ),
@@ -437,20 +439,15 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
     );
   }
 
-  void saveAssignments(){
-    // Fix the type casting issue
-    Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
-
-    // Convert to the proper type
+  void saveAssignments() {
+    Map<dynamic, dynamic> rawAssignments = hiveManager.box. get("assignments") ??  {};
     Map<String, List<Assignment>> assignments = {};
     rawAssignments.forEach((key, value) {
       if (key is String && value is List) {
         assignments[key] = value.cast<Assignment>();
       }
     });
-
-    // Save back to Hive
-    hiveManager.box.put("assignments", assignments);
+    hiveManager.box. put("assignments", assignments);
   }
 
   Color _getTextColorForBackground(Color background) {
@@ -458,30 +455,22 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
     return brightness > 0.5 ? Colors.black87 : Colors.white;
   }
 
-  void sortByName(List<Assignment> as){
-    as.sort((a,b) {
-      // Completed assignments always go to the end
+  void sortByName(List<Assignment> as) {
+    as.sort((a, b) {
       if (a.completed && !b.completed) return 1;
       if (!a.completed && b.completed) return -1;
-
-      // If both have same completion status, sort alphabetically
       return a.title.compareTo(b.title);
     });
   }
 
   void sortByDueDate(List<Assignment> as) {
     as.sort((a, b) {
-      // Completed assignments always go to the end
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
-
-      // If both have same completion status, sort by due date
-      if (a.dueDate == null && b.dueDate == null) return 0;
-      if (a.dueDate == null) return 1;
+      if (a. completed && !b.completed) return 1;
+      if (!a.completed && b. completed) return -1;
+      if (a. dueDate == null && b. dueDate == null) return 0;
+      if (a. dueDate == null) return 1;
       if (b.dueDate == null) return -1;
-
-      int dateComparison = a.dueDate!.compareTo(b.dueDate!);
-
+      int dateComparison = a.dueDate! .compareTo(b.dueDate! );
       if (dateComparison == 0) {
         return a.title.compareTo(b.title);
       }
@@ -490,12 +479,17 @@ class _AssignmentViewerState extends State<AssignmentViewer> with TickerProvider
   }
 }
 
+// =============================================================================
+// AssignmentCard - Individual assignment card with "Add to Task List" button
+// =============================================================================
+
 class AssignmentCard extends StatefulWidget {
   final Assignment assignment;
   final Color courseColor;
   final int index;
   final bool autoHide;
   final VoidCallback? onAssignmentChanged;
+  final TaskManager? taskManager; // NEW: Task manager for adding to task list
 
   const AssignmentCard({
     super.key,
@@ -504,6 +498,7 @@ class AssignmentCard extends StatefulWidget {
     required this.index,
     required this.autoHide,
     this.onAssignmentChanged,
+    this.taskManager,
   });
 
   @override
@@ -520,7 +515,7 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
 
   @override
   void initState() {
-    super.initState();
+    super. initState();
     _hoverController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
@@ -532,15 +527,13 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
       CurvedAnimation(parent: _hoverController, curve: Curves.easeInOut),
     );
-    _checkboxAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _checkboxController!, curve: Curves.elasticOut),
+    _checkboxAnimation = Tween<double>(begin: 0.0, end: 1.0). animate(
+      CurvedAnimation(parent: _checkboxController!, curve: Curves. elasticOut),
     );
 
-    // Initialize checkbox animation state
     if (widget.assignment.completed) {
-      _checkboxController!.value = 1.0;
+      _checkboxController! .value = 1.0;
     }
-
     _isInitialized = true;
   }
 
@@ -552,87 +545,117 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
   }
 
   void _handleCheckboxTap() {
-    if (!_isInitialized || _checkboxController == null) return;
+    if (! _isInitialized || _checkboxController == null) return;
 
     setState(() {
-      widget.assignment.completed = !widget.assignment.completed;
+      widget.assignment.completed = !widget.assignment. completed;
 
-      if (widget.assignment.completed) {
-        _checkboxController!.forward();
-        // If autoHide is enabled and assignment is now completed, hide it
+      if (widget. assignment.completed) {
+        _checkboxController!. forward();
         if (widget.autoHide) {
           widget.assignment.visible = false;
         }
       } else {
-        _checkboxController!.reverse();
-        // If unmarking as complete, make it visible again
+        _checkboxController! .reverse();
         widget.assignment.visible = true;
       }
 
       saveAssignments();
     });
 
-    // Notify parent to refresh and resort
     widget.onAssignmentChanged?.call();
   }
 
-  void saveAssignments(){
-    // Fix the type casting issue
-    Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
+  /// NEW: Handle adding assignment to task list
+  void _handleAddToTaskList() {
+    if (widget. taskManager == null) return;
 
-    // Convert to the proper type
+    final added = widget.taskManager!.addTask(widget.assignment);
+
+    // Show appropriate snackbar
+    ScaffoldMessenger. of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              added ? Icons.playlist_add_check : Icons.info_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                added
+                    ? 'Added "${widget.assignment.title}" to task list'
+                    : 'Already in task list',
+                style: const TextStyle(fontWeight: FontWeight. w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius. circular(12)),
+        backgroundColor: added ? Colors.green. shade700 : Colors.orange.shade700,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    // Refresh UI to update button state
+    setState(() {});
+  }
+
+  void saveAssignments() {
+    Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
     Map<String, List<Assignment>> assignments = {};
-    rawAssignments.forEach((key, value) {
+    rawAssignments. forEach((key, value) {
       if (key is String && value is List) {
         assignments[key] = value.cast<Assignment>();
       }
     });
-
-    // Save back to Hive
-    hiveManager.box.put("assignments", assignments);
+    hiveManager. box.put("assignments", assignments);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDarkMode = Theme. of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
 
-    // Create a more reliable card background that works in both light and dark modes
     final cardColor = isDarkMode
-        ? Color.alphaBlend(
+        ? Color. alphaBlend(
       widget.courseColor.withValues(alpha: 0.12),
-      theme.colorScheme.surface,
+      theme. colorScheme.surface,
     )
         : Color.alphaBlend(
-      widget.courseColor.withValues(alpha: 0.06),
-      theme.colorScheme.surface,
+      widget. courseColor.withValues(alpha: 0.06),
+      theme. colorScheme.surface,
     );
 
-    // Use theme-aware text colors with sufficient contrast
-    final primaryTextColor = theme.colorScheme.onSurface;
-    final secondaryTextColor = theme.colorScheme.onSurface.withValues(alpha: 0.7);
-
-    // Icon container background that adapts to theme
+    final primaryTextColor = theme.colorScheme. onSurface;
+    final secondaryTextColor = theme. colorScheme.onSurface.withValues(alpha: 0.7);
     final iconContainerColor = isDarkMode
         ? widget.courseColor.withValues(alpha: 0.25)
         : widget.courseColor.withValues(alpha: 0.15);
-
-    // Icon color that ensures visibility
     final iconColor = isDarkMode
         ? widget.courseColor.withValues(alpha: 0.9)
         : widget.courseColor;
+
+    // NEW: Check if assignment is already in task list
+    final isInTaskList = widget.taskManager?. contains(widget.assignment) ?? false;
 
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20.0),
+          borderRadius: BorderRadius. circular(20.0),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
               cardColor,
-              cardColor.withValues(alpha: 0.8),
+              cardColor. withValues(alpha: 0.8),
             ],
           ),
           border: Border.all(
@@ -650,12 +673,12 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
         ),
         child: Stack(
           children: [
-            // Card content with exclusion for checkbox area
-            Positioned.fill(
+            // Card content
+            Positioned. fill(
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(20.0),
+                  borderRadius: BorderRadius. circular(20.0),
                   onTapDown: (_) {
                     _hoverController.forward();
                     setState(() {
@@ -674,13 +697,11 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                       _isHovered = false;
                     });
                   },
-                  // Exclude the checkbox area from this InkWell
-                  excludeFromSemantics: false,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20.0),
                     child: Stack(
                       children: [
-                        // Subtle background pattern
+                        // Background decorations
                         Positioned(
                           right: -20,
                           top: -20,
@@ -701,26 +722,26 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                             height: 60,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: widget.courseColor.withValues(alpha: 0.03),
+                              color: widget. courseColor.withValues(alpha: 0.03),
                             ),
                           ),
                         ),
-                        // Main content with optimized layout
+                        // Main content
                         Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment. start,
                             children: [
-                              // Header row with icon and title (adjusted for completion marker)
+                              // Header row (space for checkbox + add button)
                               Padding(
-                                padding: const EdgeInsets.only(right: 40.0), // Space for completion marker
+                                padding: const EdgeInsets.only(right: 80.0),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Hero(
-                                      tag: 'assignment_icon_${widget.assignment.title}_${widget.index}',
+                                      tag: 'assignment_icon_${widget.assignment. title}_${widget.index}',
                                       child: Container(
-                                        padding: const EdgeInsets.all(10.0),
+                                        padding: const EdgeInsets. all(10.0),
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             colors: [
@@ -738,7 +759,7 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                                           ],
                                         ),
                                         child: Icon(
-                                          _getIconForType(widget.assignment.type),
+                                          _getIconForType(widget.assignment. type),
                                           size: 22,
                                           color: iconColor,
                                         ),
@@ -755,19 +776,19 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,
                                               color: widget.assignment.completed
-                                                  ? primaryTextColor.withValues(alpha: 0.6)
+                                                  ? primaryTextColor. withValues(alpha: 0.6)
                                                   : primaryTextColor,
                                               height: 1.2,
                                               decoration: widget.assignment.completed
-                                                  ? TextDecoration.lineThrough
+                                                  ?  TextDecoration.lineThrough
                                                   : TextDecoration.none,
-                                              decorationColor: primaryTextColor.withValues(alpha: 0.5),
+                                              decorationColor: primaryTextColor. withValues(alpha: 0.5),
                                               decorationThickness: 2,
                                             ),
                                             child: Text(
-                                              widget.assignment.title,
+                                              widget. assignment.title,
                                               maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
+                                              overflow: TextOverflow. ellipsis,
                                             ),
                                           ),
                                           const SizedBox(height: 6),
@@ -775,12 +796,12 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                                             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
                                             decoration: BoxDecoration(
                                               color: widget.courseColor.withValues(
-                                                alpha: widget.assignment.completed ? 0.06 : 0.12,
+                                                alpha: widget.assignment.completed ?  0.06 : 0.12,
                                               ),
                                               borderRadius: BorderRadius.circular(6.0),
                                             ),
                                             child: Text(
-                                              widget.assignment.type.toUpperCase(),
+                                              widget.assignment.type. toUpperCase(),
                                               style: TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w700,
@@ -798,7 +819,7 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              // Inline due date display (more compact)
+                              // Due date row
                               Row(
                                 children: [
                                   Container(
@@ -821,24 +842,24 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                                   Expanded(
                                     child: widget.assignment.dueDate != null
                                         ? Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment. start,
                                       children: [
                                         Text(
-                                          "${widget.assignment.dueDate!.toLocal().toString().split(' ')[0]}",
+                                          widget.assignment. dueDate!.toLocal().toString().split(' ')[0],
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
-                                            color: widget.assignment.completed
+                                            color: widget. assignment.completed
                                                 ? primaryTextColor.withValues(alpha: 0.5)
                                                 : primaryTextColor,
                                           ),
                                         ),
                                         Text(
-                                          "${widget.assignment.dueDate!.toLocal().toString().split(' ')[1].split('.')[0]}",
+                                          widget.assignment. dueDate!.toLocal().toString().split(' ')[1]. split('. ')[0],
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: widget.assignment.completed
+                                            fontWeight: FontWeight. w500,
+                                            color: widget. assignment.completed
                                                 ? secondaryTextColor.withValues(alpha: 0.5)
                                                 : secondaryTextColor,
                                           ),
@@ -867,24 +888,65 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
                 ),
               ),
             ),
-            // Checkbox positioned on top with its own gesture handling
+
+            // NEW: Add to Task List button (positioned top right, before checkbox)
+            if (widget.taskManager != null)
+              Positioned(
+                top: 12,
+                right: 48, // Position before the checkbox
+                child: GestureDetector(
+                  onTap: isInTaskList ? null : _handleAddToTaskList,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius. circular(8.0),
+                        color: isInTaskList
+                            ? Colors.green.withValues(alpha: 0.15)
+                            : widget.courseColor. withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: isInTaskList
+                              ? Colors.green.withValues(alpha: 0.4)
+                              : widget.courseColor. withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          isInTaskList
+                              ? Icons.playlist_add_check_rounded
+                              : Icons.playlist_add_rounded,
+                          size: 16,
+                          color: isInTaskList
+                              ? Colors.green
+                              : widget. courseColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Checkbox
             Positioned(
               top: 12,
               right: 12,
               child: GestureDetector(
                 onTap: _handleCheckboxTap,
-                behavior: HitTestBehavior.opaque, // Ensures this captures taps
+                behavior: HitTestBehavior.opaque,
                 child: Container(
-                  // Add some padding to increase tap area
                   padding: const EdgeInsets.all(4.0),
                   child: _isInitialized && _checkboxAnimation != null
-                      ? AnimatedBuilder(
+                      ?  AnimatedBuilder(
                     animation: _checkboxAnimation!,
                     builder: (context, child) {
                       return _buildCheckboxContainer();
                     },
                   )
-                      : _buildCheckboxContainer(), // Fallback without animation
+                      : _buildCheckboxContainer(),
                 ),
               ),
             ),
@@ -894,21 +956,20 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
     );
   }
 
-
   Widget _buildCheckboxContainer() {
     final theme = Theme.of(context);
-    final isCompleted = widget.assignment.completed;
+    final isCompleted = widget. assignment.completed;
     final completionProgress = _isInitialized && _checkboxAnimation != null
-        ? _checkboxAnimation!.value
+        ? _checkboxAnimation!. value
         : (isCompleted ? 1.0 : 0.0);
 
     return Container(
-      width: 32,
-      height: 32,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: BorderRadius. circular(8.0),
         gradient: isCompleted
-            ? LinearGradient(
+            ?  LinearGradient(
           colors: [
             Colors.green.shade400,
             Colors.green.shade600,
@@ -918,21 +979,21 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
         )
             : LinearGradient(
           colors: [
-            theme.colorScheme.surface,
+            theme.colorScheme. surface,
             theme.colorScheme.surface.withValues(alpha: 0.8),
           ],
         ),
         border: Border.all(
           color: isCompleted
               ? Colors.green.shade600
-              : theme.colorScheme.outline.withValues(alpha: 0.3),
-          width: 2,
+              : theme.colorScheme. outline. withValues(alpha: 0.3),
+          width: 1.5,
         ),
         boxShadow: [
           if (isCompleted)
             BoxShadow(
-              color: Colors.green.withValues(alpha: 0.3),
-              blurRadius: 8,
+              color: Colors.green. withValues(alpha: 0.3),
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
         ],
@@ -943,10 +1004,8 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
           duration: const Duration(milliseconds: 200),
           child: Icon(
             Icons.check_rounded,
-            size: 18,
-            color: isCompleted
-                ? Colors.white
-                : Colors.transparent,
+            size: 16,
+            color: isCompleted ? Colors.white : Colors.transparent,
             weight: 800,
           ),
         ),
@@ -955,9 +1014,9 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
   }
 
   IconData _getIconForType(String type) {
-    switch (type.toLowerCase()) {
+    switch (type. toLowerCase()) {
       case 'assignment':
-        return Icons.assignment_rounded;
+        return Icons. assignment_rounded;
       case 'discussion':
         return Icons.forum_rounded;
       case 'assessment':
@@ -968,6 +1027,9 @@ class _AssignmentCardState extends State<AssignmentCard> with TickerProviderStat
   }
 }
 
+// =============================================================================
+// AssignmentGrid - Grid of assignment cards
+// =============================================================================
 
 class AssignmentGrid extends StatefulWidget {
   final List<Assignment> assignments;
@@ -980,6 +1042,7 @@ class AssignmentGrid extends StatefulWidget {
   final IconData dismissIcon;
   final bool autoHide;
   final SortOption currentSortOption;
+  final TaskManager?  taskManager; // NEW: Task manager for cards
 
   const AssignmentGrid({
     super.key,
@@ -992,7 +1055,8 @@ class AssignmentGrid extends StatefulWidget {
     required this.currentSortOption,
     this.allowDismiss = true,
     this.dismissActionText = 'Hide Assignment',
-    this.dismissIcon = Icons.visibility_off_rounded,
+    this. dismissIcon = Icons. visibility_off_rounded,
+    this.taskManager,
   });
 
   @override
@@ -1001,7 +1065,6 @@ class AssignmentGrid extends StatefulWidget {
 
 class _AssignmentGridState extends State<AssignmentGrid> {
   late List<Assignment> _assignments;
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
   @override
   void initState() {
@@ -1020,58 +1083,20 @@ class _AssignmentGridState extends State<AssignmentGrid> {
   }
 
   void _saveAssignments() {
-    // Fix the type casting issue
     Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments") ?? {};
-
-    // Convert to the proper type
     Map<String, List<Assignment>> assignments = {};
-    rawAssignments.forEach((key, value) {
+    rawAssignments. forEach((key, value) {
       if (key is String && value is List) {
         assignments[key] = value.cast<Assignment>();
       }
     });
-
-    // Save back to Hive
-    hiveManager.box.put("assignments", assignments);
-  }
-
-  void _sortByName(List<Assignment> as){
-    as.sort((a,b) {
-      // Completed assignments always go to the end
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
-
-      // If both have same completion status, sort alphabetically
-      return a.title.compareTo(b.title);
-    });
-  }
-
-  void _sortByDueDate(List<Assignment> as) {
-    as.sort((a, b) {
-      // Completed assignments always go to the end
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
-
-      // If both have same completion status, sort by due date
-      if (a.dueDate == null && b.dueDate == null) return 0;
-      if (a.dueDate == null) return 1;
-      if (b.dueDate == null) return -1;
-
-      int dateComparison = a.dueDate!.compareTo(b.dueDate!);
-
-      if (dateComparison == 0) {
-        return a.title.compareTo(b.title);
-      }
-      return dateComparison;
-    });
+    hiveManager. box.put("assignments", assignments);
   }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final crossAxisCount = widget.isTablet ? 2 : 1;
 
-    // Show empty state if no assignments
     if (_assignments.isEmpty) {
       return Container(
         height: 300,
@@ -1081,12 +1106,12 @@ class _AssignmentGridState extends State<AssignmentGrid> {
             end: Alignment.bottomRight,
             colors: [
               widget.courseColor.withValues(alpha: isDarkMode ? 0.08 : 0.05),
-              widget.courseColor.withValues(alpha: isDarkMode ? 0.04 : 0.02),
+              widget. courseColor.withValues(alpha: isDarkMode ? 0.04 : 0.02),
             ],
           ),
           borderRadius: BorderRadius.circular(24.0),
           border: Border.all(
-            color: widget.courseColor.withValues(alpha: 0.2),
+            color: widget.courseColor. withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -1095,7 +1120,7 @@ class _AssignmentGridState extends State<AssignmentGrid> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets. all(20.0),
                 decoration: BoxDecoration(
                   color: widget.courseColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
@@ -1112,19 +1137,19 @@ class _AssignmentGridState extends State<AssignmentGrid> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                  color: Theme.of(context). colorScheme.onSurface. withValues(alpha: 0.8),
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Take a well-deserved break! 🎉',
+                'Take a well-deserved break!  🎉',
                 style: TextStyle(
                   fontSize: 14,
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontWeight: FontWeight.w500,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: TextAlign. center,
               ),
             ],
           ),
@@ -1132,17 +1157,16 @@ class _AssignmentGridState extends State<AssignmentGrid> {
       );
     }
 
-    // Show assignment grid
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        childAspectRatio: widget.isTablet ? 2.0 : 2.5,
+        crossAxisCount: widget.isTablet ? 2 : 1,
+        childAspectRatio: widget.isTablet ?  2.0 : 2.5,
         crossAxisSpacing: 16.0,
         mainAxisSpacing: 16.0,
       ),
-      itemCount: _assignments.length,
+      itemCount: _assignments. length,
       itemBuilder: (context, index) {
         return AnimatedContainer(
           duration: Duration(milliseconds: 300 + (index * 100)),
@@ -1154,18 +1178,19 @@ class _AssignmentGridState extends State<AssignmentGrid> {
             secondaryBackground: _buildDismissBackground(),
             onDismissed: (direction) {
               setState(() {
-                _assignments[index].visible = !_assignments[index].visible;
-                _assignments.removeAt(index);
+                _assignments[index].visible = ! _assignments[index]. visible;
+                _assignments. removeAt(index);
               });
               _saveAssignments();
               widget.onAssignmentChanged();
             },
             child: AssignmentCard(
               assignment: _assignments[index],
-              courseColor: widget.courseColor,
+              courseColor: widget. courseColor,
               index: index,
-              autoHide: widget.autoHide,
+              autoHide: widget. autoHide,
               onAssignmentChanged: widget.onAssignmentChanged,
+              taskManager: widget.taskManager, // NEW: Pass task manager to card
             ),
           ),
         );
@@ -1174,29 +1199,24 @@ class _AssignmentGridState extends State<AssignmentGrid> {
   }
 
   Widget _buildDismissBackground() {
-    // Check if we're showing hidden assignments (they should be made visible)
-    final isShowingHidden = _assignments.isNotEmpty && !_assignments.first.visible;
-
-    // Colors for hide action (red) vs show action (gray/neutral)
-    final backgroundColor = isShowingHidden ? Colors.grey : Colors.red;
-    final iconColor = isShowingHidden ? Colors.grey.shade700 : Colors.red;
+    final isShowingHidden = _assignments.isNotEmpty && ! _assignments. first.visible;
+    final backgroundColor = isShowingHidden ?  Colors.grey : Colors.red;
     final actionText = isShowingHidden ? 'Show Assignment' : widget.dismissActionText;
     final subText = isShowingHidden ? 'Swipe to make visible' : 'Swipe to remove from view';
 
     return Container(
-      // Removed margin - Dismissible handles positioning
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
             backgroundColor.withValues(alpha: 0.8),
-            backgroundColor.withValues(alpha: 0.6),
+            backgroundColor. withValues(alpha: 0.6),
             backgroundColor.withValues(alpha: 0.4),
           ],
           stops: const [0.0, 0.7, 1.0],
         ),
-        borderRadius: BorderRadius.circular(20.0),
+        borderRadius: BorderRadius. circular(20.0),
         boxShadow: [
           BoxShadow(
             color: backgroundColor.withValues(alpha: 0.3),
@@ -1209,9 +1229,9 @@ class _AssignmentGridState extends State<AssignmentGrid> {
         children: [
           const SizedBox(width: 24),
           Container(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets. all(12.0),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: Colors.white. withValues(alpha: 0.9),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -1222,8 +1242,8 @@ class _AssignmentGridState extends State<AssignmentGrid> {
               ],
             ),
             child: Icon(
-              isShowingHidden ? Icons.visibility : widget.dismissIcon,
-              color: iconColor,
+              isShowingHidden ?  Icons.visibility : widget.dismissIcon,
+              color: backgroundColor,
               size: 24,
             ),
           ),
@@ -1241,7 +1261,7 @@ class _AssignmentGridState extends State<AssignmentGrid> {
                     color: Colors.white,
                     shadows: [
                       Shadow(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black. withValues(alpha: 0.3),
                         blurRadius: 2,
                         offset: const Offset(0, 1),
                       ),

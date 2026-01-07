@@ -65,7 +65,7 @@ class AssignmentManager {
 
   // Data retention settings
   static const int _oldAssignmentThresholdDays = 30; // Keep assignments from last 30 days
-  static const int _futureAssignmentLimitDays = 365; // Keep assignments up to 1 year ahead
+  static const int _futureAssignmentLimitDays = 120; // Keep assignments up to 1 year ahead
 
   void loadAssignments() {
     Map<dynamic, dynamic> rawAssignments = hiveManager.box.get("assignments", defaultValue: {});
@@ -192,6 +192,8 @@ class AssignmentManager {
       }
 
       print("Assignment fetching complete. Total courses: ${assignments.length}");
+
+      _purgeOldAssignments(); //get rid of older assignments
       await hiveManager.box.put("assignments", assignments);
       await hiveManager.box.put("lastAssignmentFetch", DateTime.now());
 
@@ -204,6 +206,115 @@ class AssignmentManager {
     }
   }
 
+  /// Check if courses need to be fetched from API
+  Future<bool> shouldFetchCourses() async {
+    final courses = hiveManager.box.get("courses", defaultValue: []);
+
+    // Always allow fetching if no courses exist
+    if (courses.isEmpty) {
+      return true;
+    }
+
+    // Check if it's been a while since last fetch (e.g., 7 days)
+    final lastCourseFetch = hiveManager. box.get("lastCourseFetch") as DateTime?;
+    if (lastCourseFetch == null ||
+        DateTime.now().difference(lastCourseFetch).inDays > 7) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Fetch courses and return the count (for course limit checking)
+  Future<int> fetchAndCountCourses() async {
+    print("Fetching user courses...");
+    final authedClient = _createAuthenticatedClient();
+
+    await RateLimitManager.checkAndWait();
+    final uidResponse = await authedClient
+        .get(Uri.parse('https://api.schoology.com/v1/app-user-info/api_uid'));
+
+    if (uidResponse.statusCode != 200) {
+      throw Exception('Failed to get user ID:  ${uidResponse.statusCode}');
+    }
+
+    Map<String, dynamic> uidJson = jsonDecode(uidResponse.body);
+    dynamic uid = uidJson['api_uid'];
+
+    await RateLimitManager.checkAndWait();
+    final response = await authedClient
+        . get(Uri.parse('https://api.schoology.com/v1/users/$uid/sections'));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get sections:  ${response.statusCode}');
+    }
+
+    await RateLimitManager.checkAndWait();
+    final nameResponse = await authedClient
+        .get(Uri.parse('https://api.schoology.com/v1/users/$uid'));
+
+    if (nameResponse.statusCode != 200) {
+      throw Exception('Failed to get user name: ${nameResponse.statusCode}');
+    }
+
+    Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+    Map<String, dynamic> jsonNameResponse = jsonDecode(nameResponse.body);
+    List<dynamic> sections = jsonResponse['section'] ?? [];
+
+    if (sections.isEmpty) {
+      print("No sections found for user");
+      return 0;
+    }
+
+    List<dynamic> courseTitles =
+    sections.map((section) => section['course_title']).toList();
+    List<dynamic> courseIds =
+    sections.map((section) => section['id']).toList();
+
+    print("Found ${courseTitles. length} courses:  $courseTitles");
+
+    // Store all courses temporarily (may be filtered if > 15)
+    await hiveManager.box.put("temp_all_courses", courseTitles);
+    await hiveManager.box. put("temp_all_ids", courseIds);
+    await hiveManager.box. put("name", jsonNameResponse['name_first']);
+    await hiveManager.box.put("lastCourseFetch", DateTime.now());
+
+    return courseTitles.length;
+  }
+
+  /// Updated getCourses - now simplified
+  Future<void> getCourses() async {
+    try {
+      final courseCount = await fetchAndCountCourses();
+
+      // If <= 15 courses, save them directly
+      if (courseCount <= 15) {
+        final courses = hiveManager.box.get("temp_all_courses", defaultValue:  []);
+        final ids = hiveManager.box.get("temp_all_ids", defaultValue: []);
+
+        await hiveManager.box.put("courses", courses);
+        await hiveManager.box.put("ids", ids);
+
+        // Clean up temp storage
+        await hiveManager.box.delete("temp_all_courses");
+        await hiveManager. box.delete("temp_all_ids");
+      }
+      // If > 15, temp storage remains for course selection screen
+
+      numCourses = courseCount;
+    } catch (e) {
+      print("Error fetching courses: $e");
+      rethrow;
+    }
+  }
+
+  /// Check if course selection is needed
+  bool needsCourseSelection() {
+    final tempCourses = hiveManager.box.get("temp_all_courses", defaultValue: []);
+    return tempCourses.length > 15;
+  }
+
+  /*
   // EXISTING METHODS (getCourses, _fetchAssignments, etc.) remain the same...
   Future<void> getCourses() async {
     try {
@@ -263,6 +374,8 @@ class AssignmentManager {
       rethrow;
     }
   }
+
+   */
 
   Future<void> _fetchAssignments(
       String id, String courseName, oauth1.Client authedClient) async {
@@ -656,6 +769,27 @@ class AssignmentManager {
     });
 
     return typedAssignments;
+  }
+
+  /// Removes assignments outside the retention window from the main assignments map
+  void _purgeOldAssignments() {
+    DateTime now = DateTime.now();
+    DateTime oldThreshold = now. subtract(const Duration(days: _oldAssignmentThresholdDays));
+    DateTime futureThreshold = now.add(const Duration(days: _futureAssignmentLimitDays));
+
+    int removedCount = 0;
+
+    assignments.forEach((courseName, courseAssignments) {
+      int beforeCount = courseAssignments.length;
+      courseAssignments.removeWhere((assignment) {
+        if (assignment.dueDate == null) return false; // Keep null-dated assignments
+        return assignment.dueDate!.isBefore(oldThreshold) ||
+            assignment. dueDate!. isAfter(futureThreshold);
+      });
+      removedCount += beforeCount - courseAssignments.length;
+    });
+
+    print("Purged $removedCount old/distant assignments from storage");
   }
 }
 

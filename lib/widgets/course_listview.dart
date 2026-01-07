@@ -3,30 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/widgets/folder.dart';
 import 'package:myapp/class_essentials/theme.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/class_essentials/taskmanager.dart';
 
 class CourseScreen extends ConsumerStatefulWidget {
   final List<dynamic> courses;
   final AssignmentManager am;
-  bool autoHide;
-  /*
-  final List<String> courses = [
-    'Mathematics',
-    'Computer Science',
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'English Literature',
-    'History',
-    'Art & Design',
-    'Music Theory',
-    'Philosophy',
-    'Psychology',
-    'Economics',
-    'Political Science',
-    'Environmental Science',
-  ];
-  */
-  CourseScreen({Key? key, required this.courses, required this.am, required this.autoHide}) : super(key: key);
+  final bool autoHide;
+  final TaskManager? taskManager; // NEW: Optional task manager
+
+  const CourseScreen({
+    Key? key,
+    required this.courses,
+    required this.am,
+    required this.autoHide,
+    this.taskManager, // NEW: Optional parameter
+  }) : super(key: key);
 
   @override
   ConsumerState<CourseScreen> createState() => _CourseScreenState();
@@ -55,7 +46,7 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
     // Distribute indices evenly across the gradient
     List<int> indices = [];
     for (int i = 0; i < itemCount; i++) {
-      // Calculate the position in the gradient (0.0 to 1.0)
+      // Calculate the position in the gradient (0. 0 to 1.0)
       double position = i / (itemCount - 1);
       // Map to color index (0 to totalColors-1)
       int colorIndex = (position * (totalColors - 1)).round();
@@ -108,11 +99,16 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                   Text(
                     'Courses',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: !_isTimeBasedView
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontWeight: !_isTimeBasedView ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                          color: !_isTimeBasedView
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                          fontWeight: !_isTimeBasedView
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -128,13 +124,18 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     ),
                   ),
                   Text(
-                    'Time-based',
+                    'Due Date',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: _isTimeBasedView
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontWeight: _isTimeBasedView ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                          color: _isTimeBasedView
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                          fontWeight: _isTimeBasedView
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
                   ),
                 ],
               ),
@@ -144,20 +145,21 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 24.0),
               child: Text(
-                _isTimeBasedView
-                    ? ''
-                    : '${widget.courses.length} Courses',
+                _isTimeBasedView ? '' : '${widget.courses.length} Courses',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w500,
-                ),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ),
 
             // Folders list - either courses or time-based
             if (_isTimeBasedView)
-            // Time-based folders
+              // Time-based folders
               ..._timeBasedFolders.asMap().entries.map((entry) {
                 int index = entry.key;
                 String folderName = entry.value;
@@ -171,11 +173,12 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     am: widget.am,
                     indexNum: 0,
                     autoHide: widget.autoHide,
+                    taskManager: widget.taskManager, // NEW: Pass task manager
                   ),
                 );
               })
             else
-            // Course folders
+              // Course folders
               ...widget.courses.asMap().entries.map((entry) {
                 int index = entry.key;
                 String courseName = entry.value;
@@ -189,6 +192,7 @@ class _CourseScreenState extends ConsumerState<CourseScreen> {
                     am: widget.am,
                     indexNum: index + 1,
                     autoHide: widget.autoHide,
+                    taskManager: widget.taskManager, // NEW: Pass task manager
                   ),
                 );
               }),

@@ -25,6 +25,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Local state variables for the toggles
   late bool _autoHideEnabled;
   late bool _visibleCalendarEnabled;
+  late String _defaultScreen;
 
   @override
   void initState() {
@@ -32,6 +33,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Initialize from constructor parameters (loaded from Hive at app startup)
     _autoHideEnabled = widget.autoHide;
     _visibleCalendarEnabled = widget.visibleCalendar;
+    // Initialize default screen from Hive, defaulting to "Assignments"
+    _defaultScreen = widget.hiveManager.box.get("defaultScreen", defaultValue: "Assignments") as String;
   }
 
   @override
@@ -39,14 +42,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final currentTheme = ref.watch(currentThemeProvider);
     final availableThemes = ThemeManager.getAvailableThemes();
     final theme = (Theme.of(context).brightness == Brightness.dark)
-        ? currentTheme.darkTheme
+        ? currentTheme. darkTheme
         : currentTheme.lightTheme;
 
     return Scaffold(
-      backgroundColor: theme!.colorScheme.surface,
+      backgroundColor: theme! .colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
+          child:  Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,13 +87,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             theme.colorScheme.primary,
             theme.colorScheme.primary.withValues(alpha: 0.7),
           ],
-          begin: Alignment.centerLeft,
+          begin:  Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.2),
+            color:  theme.colorScheme.primary.withValues(alpha: 0.2),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -104,13 +107,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(
+            child:  Icon(
               Icons.settings_rounded,
-              color: theme.colorScheme.onPrimary,
+              color: theme. colorScheme.onPrimary,
               size: 32,
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width:  20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,8 +121,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text(
                   'Settings',
                   style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onPrimary,
+                    fontWeight: FontWeight. bold,
+                    color: theme. colorScheme.onPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -143,9 +146,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = isDark ? currentTheme.darkTheme : currentTheme.lightTheme;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets. all(24),
       decoration: BoxDecoration(
-        color: theme!.colorScheme.surface,
+        color:  theme! .colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -153,7 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+            color: theme. colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -172,27 +175,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 child: Icon(
                   Icons.tune_rounded,
-                  color: theme.colorScheme.primary,
+                  color:  theme.colorScheme.primary,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment. start,
                   children: [
                     Text(
                       'Functionality',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
+                        color: theme. colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Customize app behavior',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      style: theme.textTheme.bodyMedium?. copyWith(
+                        color:  theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -202,16 +205,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
+          // Default Screen Dropdown
+          _buildDefaultScreenDropdown(context:  context, theme: theme),
+          const SizedBox(height:  16),
+
           // Visible Calendar Assignments Toggle
           _buildFunctionalityToggle(
             context: context,
-            theme: theme,
+            theme:  theme,
             title: 'Visible Calendar Assignments',
             subtitle: 'Show hidden assignments in the calendar',
             icon: Icons.visibility_rounded,
-            isEnabled: _visibleCalendarEnabled,
+            isEnabled:  _visibleCalendarEnabled,
             onTap: () {
-              print('Visible Calendar toggle tapped. Current: $_visibleCalendarEnabled');
+              print('Visible Calendar toggle tapped.  Current:  $_visibleCalendarEnabled');
               setState(() {
                 _visibleCalendarEnabled = !_visibleCalendarEnabled;
               });
@@ -220,7 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               print('Visible Calendar updated to: $_visibleCalendarEnabled');
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height:  16),
 
           // Auto-Hide Assignments Toggle
           _buildFunctionalityToggle(
@@ -236,13 +243,151 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _autoHideEnabled = !_autoHideEnabled;
               });
               // Only save to Hive - no StateProvider needed
-              widget.hiveManager.box.put("autoHide", _autoHideEnabled);
+              widget. hiveManager.box.put("autoHide", _autoHideEnabled);
               print('Auto-Hide updated to: $_autoHideEnabled');
             },
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildDefaultScreenDropdown({
+    required BuildContext context,
+    required ThemeData theme,
+  }) {
+    final List<String> screenOptions = ['Calendar', 'Assignments', 'Tasks'];
+
+    return Container(
+      padding:  const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.08),
+            theme.colorScheme.primary.withValues(alpha: 0.04),
+          ],
+          begin:  Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius:  BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.home_rounded,
+              color: theme.colorScheme.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Default Screen',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose your starting screen',
+                  style: theme. textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme. primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme. primary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _defaultScreen,
+                      icon: Icon(
+                        Icons.arrow_drop_down_rounded,
+                        color: theme.colorScheme. primary,
+                      ),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                      dropdownColor: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      items: screenOptions.map((String screen) {
+                        return DropdownMenuItem<String>(
+                          value: screen,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _getScreenIcon(screen),
+                                  size: 20,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(screen),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          print('Default screen changed from $_defaultScreen to $newValue');
+                          setState(() {
+                            _defaultScreen = newValue;
+                          });
+                          // Save to Hive
+                          widget.hiveManager. box.put("defaultScreen", newValue);
+                          print('Default screen updated to: $newValue');
+                        }
+                      },
+                    ),
+                  ),
+                ),
+
+              ],
+            ),
+          ),
+          //const SizedBox(width: 16),
+
+        ],
+      ),
+    );
+  }
+
+  IconData _getScreenIcon(String screen) {
+    switch (screen) {
+      case 'Calendar':
+        return Icons.calendar_today_rounded;
+      case 'Assignments':
+        return Icons. assignment_rounded;
+      case 'Tasks':
+        return Icons. task_alt_rounded;
+      default:
+        return Icons.home_rounded;
+    }
   }
 
   Widget _buildFunctionalityToggle({
@@ -264,17 +409,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           gradient: LinearGradient(
             colors: isEnabled
                 ? [
-              theme.colorScheme.primary.withValues(alpha: 0.12),
+              theme.colorScheme.primary. withValues(alpha: 0.12),
               theme.colorScheme.primary.withValues(alpha: 0.08),
             ]
                 : [
-              theme.colorScheme.primary.withValues(alpha: 0.06),
+              theme. colorScheme.primary.withValues(alpha: 0.06),
               theme.colorScheme.primary.withValues(alpha: 0.03),
             ],
-            begin: Alignment.topLeft,
+            begin:  Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius:  BorderRadius.circular(16),
           border: Border.all(
             color: isEnabled
                 ? theme.colorScheme.primary.withValues(alpha: 0.3)
@@ -296,7 +441,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Icon(
                 icon,
                 color: isEnabled
-                    ? theme.colorScheme.primary
+                    ? theme.colorScheme. primary
                     : theme.colorScheme.primary.withValues(alpha: 0.7),
                 size: 24,
               ),
@@ -309,17 +454,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(
                     title,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight:  FontWeight.w600,
                       color: isEnabled
                           ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                          : theme. colorScheme.onSurface.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    style: theme.textTheme.bodyMedium?. copyWith(
+                      color:  theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -329,7 +474,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             // Custom Toggle Switch
             AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds:  300),
               curve: Curves.easeInOut,
               width: 60,
               height: 34,
@@ -342,18 +487,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     theme.colorScheme.primary.withValues(alpha: 0.9),
                   ]
                       : [
-                    theme.colorScheme.outline.withValues(alpha: 0.4),
+                    theme.colorScheme.outline. withValues(alpha: 0.4),
                     theme.colorScheme.outline.withValues(alpha: 0.3),
                   ],
                   begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  end: Alignment. bottomRight,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: isEnabled
                         ? theme.colorScheme.primary.withValues(alpha: 0.4)
                         : Colors.black.withValues(alpha: 0.15),
-                    blurRadius: isEnabled ? 12 : 6,
+                    blurRadius:  isEnabled ? 12 : 6,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -362,7 +507,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
+                    curve: Curves. easeInOut,
                     left: isEnabled ? 28 : 2,
                     top: 2,
                     child: Container(
@@ -374,22 +519,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                            blurRadius:  6,
+                            offset:  const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
+                        duration:  const Duration(milliseconds: 200),
                         child: isEnabled
                             ? Icon(
                           Icons.check,
                           key: const ValueKey('check'),
-                          color: theme.colorScheme.primary,
+                          color: theme. colorScheme.primary,
                           size: 16,
                         )
                             : Icon(
-                          Icons.close,
+                          Icons. close,
                           key: const ValueKey('close'),
                           color: theme.colorScheme.outline,
                           size: 16,
@@ -413,23 +558,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       List<String> availableThemes,
       ) {
     final contextTheme = Theme.of(context);
-    final isDark = contextTheme.brightness == Brightness.dark;
+    final isDark = contextTheme. brightness == Brightness.dark;
     final theme = isDark ? currentTheme.darkTheme : currentTheme.lightTheme;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding:  const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme!.colorScheme.surface,
+        color: theme!. colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        border: Border. all(
+          color: theme. colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset:  const Offset(0, 10),
           ),
         ],
       ),
@@ -446,20 +591,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 child: Icon(
                   Icons.palette_rounded,
-                  color: theme.colorScheme.primary,
+                  color:  theme.colorScheme.primary,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment. start,
                   children: [
                     Text(
                       'Appearance',
-                      style: theme.textTheme.titleLarge?.copyWith(
+                      style: theme. textTheme.titleLarge?. copyWith(
                         fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
+                        color: theme. colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -495,24 +640,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.08),
-            theme.colorScheme.primary.withValues(alpha: 0.04),
+            theme.colorScheme. primary.withValues(alpha: 0.08),
+            theme. colorScheme.primary.withValues(alpha: 0.04),
           ],
-          begin: Alignment.topLeft,
+          begin:  Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+          color: theme.colorScheme. primary.withValues(alpha: 0.15),
           width: 1,
         ),
       ),
       child: Row(
-        children: [
+        children:  [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+              color: theme.colorScheme. primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -528,7 +673,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Text(
                   isMetallic ? 'Metallic Look' : 'Matte Look',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style:  theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
                   ),
@@ -536,7 +681,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Choose between a metallic or matte look',
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme. textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
@@ -558,21 +703,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   colors: isMetallic
                       ? [
                     theme.colorScheme.primary,
-                    theme.colorScheme.primary.withValues(alpha: 0.8),
+                    theme. colorScheme.primary.withValues(alpha: 0.8),
                   ]
                       : [
                     theme.colorScheme.outline.withValues(alpha: 0.3),
                     theme.colorScheme.outline.withValues(alpha: 0.2),
                   ],
-                  begin: Alignment.topLeft,
+                  begin:  Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: isMetallic
-                        ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                    color:  isMetallic
+                        ?  theme.colorScheme.primary. withValues(alpha: 0.3)
                         : Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
+                    blurRadius:  8,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -587,13 +732,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors. white,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                            blurRadius:  4,
+                            offset:  const Offset(0, 2),
                           ),
                         ],
                       ),
@@ -635,7 +780,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       itemBuilder: (context, index) {
         final themeId = availableThemes[index];
         final appTheme = ThemeManager.getTheme(themeId);
-        final isSelected = themeId == currentTheme.name.toLowerCase();
+        final isSelected = themeId == currentTheme.name. toLowerCase();
         final previewTheme = isDark ? appTheme.darkTheme : appTheme.lightTheme;
 
         return _buildThemeCard(
@@ -644,7 +789,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           appTheme,
           themeId,
           isSelected,
-          previewTheme!,
+          previewTheme! ,
         );
       },
     );
@@ -661,8 +806,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return GestureDetector(
       onTap: () {
         if(appTheme.isPremium){
-          ThemeData? a = Theme.of(context).brightness == Brightness.light ? appTheme.lightTheme : appTheme.darkTheme;
-          _showComingSoonSnackbar(context, a!);
+          ThemeData?  a = Theme.of(context).brightness == Brightness.light ? appTheme.lightTheme : appTheme.darkTheme;
+          _showComingSoonSnackbar(context, a! );
         } else{
           ref.read(themeProvider.notifier).changeTheme(themeId);
         }
@@ -673,23 +818,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           gradient: LinearGradient(
             colors: [
               previewTheme.colorScheme.primary.withValues(alpha: 0.8),
-              previewTheme.colorScheme.primary.withValues(alpha: 0.6),
+              previewTheme. colorScheme.primary.withValues(alpha: 0.6),
             ],
-            begin: Alignment.topLeft,
+            begin:  Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? previewTheme.colorScheme.onPrimary.withValues(alpha: 0.8)
+                ? previewTheme.colorScheme.onPrimary. withValues(alpha: 0.8)
                 : Colors.transparent,
             width: 3,
           ),
           boxShadow: [
             BoxShadow(
-              color: previewTheme.colorScheme.primary.withValues(alpha: 0.3),
+              color: previewTheme.colorScheme. primary.withValues(alpha: 0.3),
               blurRadius: isSelected ? 20 : 12,
-              offset: Offset(0, isSelected ? 8 : 4),
+              offset:  Offset(0, isSelected ? 8 : 4),
             ),
           ],
         ),
@@ -702,7 +847,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: CustomPaint(
-                  painter: ThemePatternPainter(appTheme.courseColors),
+                  painter:  ThemePatternPainter(appTheme.courseColors),
                 ),
               ),
             ),
@@ -718,7 +863,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Colors.transparent,
                   ],
                   begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
+                  end:  Alignment.topCenter,
                 ),
               ),
               child: Column(
@@ -731,20 +876,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       if (appTheme.isPremium)
                         const Icon(
                           Icons.lock_sharp,
-                          color: Colors.grey,
+                          color: Colors. grey,
                         ),
-                      const SizedBox(width:10),
+                      const SizedBox(width: 10),
 
-                      if (isSelected && !appTheme.isPremium)
+                      if (isSelected && ! appTheme.isPremium)
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.white. withValues(alpha: 0.9),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.check_rounded,
-                            color: previewTheme.colorScheme.primary,
+                            color: previewTheme.colorScheme. primary,
                             size: 16,
                           ),
                         ),
@@ -761,8 +906,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 4,
+                          color: Colors. black.withValues(alpha: 0.5),
+                          blurRadius:  4,
                         ),
                       ],
                     ),
@@ -776,10 +921,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       return Container(
                         width: 8,
                         height: 8,
-                        margin: const EdgeInsets.only(right: 4),
+                        margin: const EdgeInsets. only(right: 4),
                         decoration: BoxDecoration(
                           color: color,
-                          shape: BoxShape.circle,
+                          shape:  BoxShape.circle,
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3),
                             width: 0.5,
@@ -805,26 +950,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white. withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child:  const Icon(
                 Icons.lock_outline_rounded,
                 color: Colors.white,
                 size: 20,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width:  12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Coming Soon!',
+                    'Coming Soon! ',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Colors. white,
                       fontSize: 16,
                     ),
                   ),
@@ -866,7 +1011,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           BoxShadow(
             color: theme.colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset:  const Offset(0, 10),
           ),
         ],
       ),
@@ -878,12 +1023,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color:  theme.colorScheme.primary. withValues(alpha: 0.1),
+                  borderRadius:  BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.account_circle_rounded,
-                  color: theme.colorScheme.primary,
+                  color: theme.colorScheme. primary,
                   size: 24,
                 ),
               ),
@@ -894,15 +1039,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   children: [
                     Text(
                       'Account',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: theme.textTheme. titleLarge?.copyWith(
+                        fontWeight: FontWeight. bold,
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Manage your account settings',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium?. copyWith(
                         color:
                         theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
@@ -924,7 +1069,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       children: [
         /* In case this is needed later.
         _buildLargeActionTile(
-          context: context,
+          context:  context,
           theme: theme,
           icon: Icons.help_outline_rounded,
           title: 'Help & Support',
@@ -942,14 +1087,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: 'About',
           subtitle: 'App version and information',
           color: theme.colorScheme.tertiary,
-          onTap: () {
+          onTap:  () {
             // Add about action
           },
         ),
         */
         const SizedBox(height: 16),
         _buildLargeActionTile(
-          context: context,
+          context:  context,
           theme: theme,
           icon: Icons.logout_rounded,
           title: 'Sign Out',
@@ -999,10 +1144,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
+              child:  Icon(
                 icon,
                 color: color,
-                size: 24,
+                size:  24,
               ),
             ),
             const SizedBox(width: 16),
@@ -1012,7 +1157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style:  theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: color,
                     ),
@@ -1020,8 +1165,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    style: theme.textTheme.bodyMedium?. copyWith(
+                      color:  theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -1055,7 +1200,7 @@ class ThemePatternPainter extends CustomPainter {
       final radius = (size.width * 0.3) - (i * 8);
       final opacity = 0.1 - (i * 0.015);
 
-      paint.color = colors[i].withValues(alpha: opacity);
+      paint.color = colors[i]. withValues(alpha: opacity);
 
       canvas.drawCircle(
         Offset(size.width * 0.8, size.height * 0.2),

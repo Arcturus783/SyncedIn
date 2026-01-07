@@ -2,6 +2,7 @@ import '../class_essentials/assignment.dart';
 import '../class_essentials/hive.dart';
 import '../screens/settings.dart';
 import '../screens/calendar.dart';
+import '../screens/tasklist.dart';
 import 'package:flutter/material.dart';
 import 'main.dart' as main_screen;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -9,6 +10,8 @@ import 'package:myapp/class_essentials/theme.dart';
 import 'package:myapp/widgets/course_listview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/class_essentials/taskmanager.dart';
+import 'package:myapp/screens/course_selection_screen.dart';
 
 final hiveManager = HiveBoxManager();
 ThemeManager tm = ThemeManager();
@@ -32,13 +35,13 @@ class Central extends ConsumerWidget {
     return MaterialApp(
       title: 'Home Screen',
       debugShowCheckedModeBanner: false,
-      theme: (b == Brightness.light)
-          ? ref.watch(currentThemeProvider).lightTheme
+      theme: (b == Brightness. light)
+          ? ref.watch(currentThemeProvider). lightTheme
           : ref
           .watch(currentThemeProvider)
           .darkTheme, //uses the theme manager to get the theme
       home: MyHomePage(
-        oauthToken: oauthToken ?? "null",
+        oauthToken: oauthToken ??  "null",
         oauthSecret: oauthSecret ?? "null",
         coursesNeeded: coursesNeeded,
       ),
@@ -64,8 +67,8 @@ class MyHomePage extends ConsumerStatefulWidget {
 
 class _MyHomePageState extends ConsumerState<MyHomePage>
     with SingleTickerProviderStateMixin {
-  int currentIndex = 0; //0 is dashboard, 1 is calendar, 2 is assignments, 3 is settings
-  String testWords = "Hello World!";
+  late int currentIndex; //0 is calendar, 1 is assignments, 2 is task list, 3 is settings
+  String testWords = "Hello World! ";
 
   late String oToken;
   late String oSecret;
@@ -82,7 +85,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
   final DateTime _focusedDay = DateTime.now();
   final DateTime _focusedDayW = DateTime.now();
-  final DateTime _selectedDayW = DateTime.now();
+  final DateTime _selectedDayW = DateTime. now();
   final DateTime _selectedDay = DateTime.now();
 
   late AnimationController _aAnimController;
@@ -90,6 +93,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   late Animation<Offset> _slideOutAnimation;
 
   late AssignmentManager am;
+  late TaskManager taskManager; // NEW: Task manager instance
 
   bool autoHide = hiveManager.box.get("autoHide", defaultValue: false);
   bool visibleCalendar = hiveManager.box.get("visibleCalendar", defaultValue: false);
@@ -99,6 +103,22 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   @override
   void initState() {
     super.initState();
+
+    String t = hiveManager.box.get("defaultScreen", defaultValue: "") as String;
+    switch(t){
+      case "Calendar":
+        currentIndex = 0;
+        break;
+      case "Assignments":
+        currentIndex = 1;
+        break;
+      case "Tasks":
+        currentIndex = 2;
+        break;
+      default:
+        currentIndex = 1;
+    }
+
     _aAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -109,7 +129,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       end: const Offset(-1.0, 0.0),
     ).animate(CurvedAnimation(
       parent: _aAnimController,
-      curve: Curves.easeInOut,
+      curve: Curves. easeInOut,
     ));
     _slideInAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
@@ -121,8 +141,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
     oToken = widget.oauthToken;
     oSecret = widget.oauthSecret;
-    needCourses = widget.coursesNeeded;
+    needCourses = widget. coursesNeeded;
     am = AssignmentManager(hiveManager, oToken, oSecret);
+    taskManager = TaskManager(hiveManager); // NEW: Initialize task manager
     courses =
         hiveManager.box.get("courses", defaultValue: ["No Courses Found!"]);
     if (courses == ["No Courses Found!"]) needCourses = true;
@@ -131,40 +152,60 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
   @override
   void dispose() {
-    _aAnimController.dispose();
+    _aAnimController. dispose();
     super.dispose();
   }
 
   Future<void> initializeData() async {
     try {
-      /*
-      if (!hiveManager.isInitialized) {
-        await hiveManager.init();
-      }
-      */
-
       if (needCourses) {
         print("Getting courses...");
         await am.getCourses();
+
+        // Check if course selection is needed
+        if (am.needsCourseSelection() && mounted) {
+          final allCourses = hiveManager.box.get("temp_all_courses", defaultValue:  []);
+          final allCourseIds = hiveManager.box.get("temp_all_ids", defaultValue: []);
+
+          // Show course selection screen
+          await Navigator. of(context).push(
+            MaterialPageRoute(
+              builder:  (context) => CourseSelectionScreen(
+                allCourses: allCourses,
+                allCourseIds: allCourseIds,
+                onConfirm: (selectedCourses, selectedIds) async {
+                  await hiveManager.box.put("courses", selectedCourses);
+                  await hiveManager.box.put("ids", selectedIds);
+                  await hiveManager.box.delete("temp_all_courses");
+                  await hiveManager.box. delete("temp_all_ids");
+                },
+              ),
+            ),
+          );
+        }
+
         setState(() {
-          courses = hiveManager.box
-              .get("courses", defaultValue: ["No Courses Found!"]);
+          courses = hiveManager.box. get("courses", defaultValue: ["No Courses Found!"]);
         });
+      } else {
+        // Load already-selected courses
+        setState(() {
+          courses = hiveManager. box.get("courses", defaultValue: ["No Courses Found!"]);
+        });
+        print("Loaded ${courses.length} previously selected courses");
       }
 
       setState(() {
         dismissedAssignments =
-            hiveManager.box.get("dismissedAssignments", defaultValue: [""]) ??
-                [""];
-        disA =
-            hiveManager.box.get("disA", defaultValue: List<Assignment>.empty());
+            hiveManager.box. get("dismissedAssignments", defaultValue: [""]) ?? [""];
+        disA = hiveManager.box.get("disA", defaultValue: List<Assignment>.empty());
       });
 
       FlutterNativeSplash.remove();
       am.loadAssignments();
     } catch (e) {
       print("Error initializing data: $e");
-      FlutterNativeSplash.remove();
+      FlutterNativeSplash. remove();
     }
   }
 
@@ -173,7 +214,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
   Future<void> logout(BuildContext context) async {
     try {
       // Clear all data from Hive box instead of deleting it
-      if (hiveManager.isInitialized) {
+      if (hiveManager. isInitialized) {
         await hiveManager.box.clear();
       }
 
@@ -182,7 +223,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
       // Navigate to login screen and remove all previous routes
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
+        Navigator.of(context). pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => const main_screen.MyApp(),
           ),
@@ -194,7 +235,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
       // Fallback navigation even if clearing fails
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
+        Navigator. of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => const main_screen.MyApp(),
           ),
@@ -209,19 +250,19 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     if (assignments.isNotEmpty) {
       for (List<Assignment> courseAssignments in assignments.values) {
         for (Assignment a in courseAssignments) {
-          if (a.dueDate == null || a.dueDate.toString().trim().isEmpty) {
+          if (a. dueDate == null || a.dueDate. toString(). trim(). isEmpty) {
             continue;
           }
           try {
             DateTime dt = a.dueDate!;
-            if (dt.day == day.day &&
+            if (dt.day == day. day &&
                 dt.month == day.month &&
                 dt.year == dt.year) {
-              aTD.add(a);
+              aTD. add(a);
             }
           } catch (e) {
             print(
-                "Error displaying events for day $day and assignment ${a.dueDate}: $e");
+                "Error displaying events for day $day and assignment ${a. dueDate}: $e");
           }
         }
       }
@@ -231,7 +272,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
 
   int assignmentsNoDueDate() {
     int sum = 0;
-    for (List<Assignment> courseAssignments in assignments.values) {
+    for (List<Assignment> courseAssignments in assignments. values) {
       for (Assignment a in courseAssignments) {
         if (a.dueDate == null) {
           sum++;
@@ -249,7 +290,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     if (nextSunday > lastSunday) {
       return today.subtract(Duration(days: lastSunday));
     } else {
-      return today.add(Duration(days: nextSunday));
+      return today. add(Duration(days: nextSunday));
     }
   }
 
@@ -262,9 +303,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       for (List<Assignment> courseAssignments in assignments.values) {
         for (Assignment a in courseAssignments) {
           try {
-            if (a.dueDate != null && a.dueDate!.day == day.day) {
+            if (a.dueDate != null && a. dueDate! .day == day.day) {
               setState(() {
-                assignmentsPerDay.add(a);
+                assignmentsPerDay. add(a);
               });
             }
           } catch (e) {
@@ -283,13 +324,23 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           getEventsToday: _getEventsToday,
           assignmentsPerDay: assignmentsPerDay,
           focusedDay: _focusedDay,
-          currentColor: const Color.fromARGB(255, 140, 140, 140),
+          currentColor: const Color. fromARGB(255, 140, 140, 140),
           am: am,
         );
-    //return _calendarScreen();
       case 1:
-        return CourseScreen(courses: courses, am: am, autoHide: hiveManager.box.get("autoHide", defaultValue: false));
+        return CourseScreen(
+          courses: courses,
+          am: am,
+          autoHide: hiveManager.box. get("autoHide", defaultValue: false),
+          taskManager: taskManager, // NEW: Pass task manager
+        );
       case 2:
+      // NEW: Task list screen
+        return TaskListScreen(
+          taskManager: taskManager,
+          accentColor: _getAccentColor(),
+        );
+      case 3:
         return SettingsScreen(
           logout: logout,
           hiveManager: hiveManager,
@@ -297,7 +348,12 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           visibleCalendar: visibleCalendar,
         );
       default:
-        return CourseScreen(courses: courses, am: am, autoHide: hiveManager.box.get("autoHide", defaultValue: false));
+        return CourseScreen(
+          courses: courses,
+          am: am,
+          autoHide: hiveManager.box. get("autoHide", defaultValue: false),
+          taskManager: taskManager,
+        );
     }
   }
 
@@ -307,13 +363,13 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     final isMetallic = ref.watch(metallicProvider);
 
     // Get the first color from the theme's gradient as the accent
-    if (theme.courseColors.isNotEmpty) {
-      final accentColor = theme.courseColors[0];
+    if (theme. courseColors.isNotEmpty) {
+      final accentColor = theme. courseColors[0];
 
-      if (!isMetallic) {
+      if (! isMetallic) {
         // For matte themes, slightly desaturate
         final hsl = HSLColor.fromColor(accentColor);
-        return hsl.withSaturation(hsl.saturation * 0.8).toColor();
+        return hsl.withSaturation(hsl.saturation * 0.8). toColor();
       }
       return accentColor;
     }
@@ -331,7 +387,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       height: 48,
       decoration: BoxDecoration(
         gradient: isMetallic
-            ? LinearGradient(
+            ?  LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -340,11 +396,11 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           ],
         )
             : null,
-        color: isMetallic ? null : accentColor.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(14),
+        color: isMetallic ? null : accentColor. withValues(alpha: 0.9),
+        borderRadius: BorderRadius. circular(14),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withValues(alpha: 0.3),
+            color: accentColor. withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -354,15 +410,15 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
         children: [
           // Gloss overlay for metallic
           if (isMetallic)
-            Positioned.fill(
+            Positioned. fill(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius. circular(14),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    end: Alignment. bottomRight,
                     colors: [
-                      Colors.white.withValues(alpha: 0.25),
+                      Colors.white. withValues(alpha: 0.25),
                       Colors.transparent,
                       Colors.black.withValues(alpha: 0.1),
                     ],
@@ -373,15 +429,15 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           // Icon in center
           Center(
             child:
-              ImageIcon(
-                  const AssetImage("assets/logoIcon.png"),
-                  size: 50,
-                  color: (Theme.of(context).brightness == Brightness.light) ? Colors.white : const Color.fromARGB(255, 15, 18, 20),
-              ),
+            ImageIcon(
+              const AssetImage("assets/logoIcon.png"),
+              size: 50,
+              color: (Theme.of(context). brightness == Brightness.light) ?  Colors.white : const Color. fromARGB(255, 15, 18, 20),
+            ),
 
             /*Icon(
               Icons.scanner,
-              color: Colors.white.withValues(alpha: 0.95),
+              color: Colors.white. withValues(alpha: 0.95),
               size: 26,
             ),*/
           ),
@@ -396,8 +452,8 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
       final today = am.getAssignmentsDueToday();
       final overdue = am.getOverdueAssignments();
 
-      final todayIncomplete = today.where((a) => !a.completed).length;
-      final overdueIncomplete = overdue.where((a) => !a.completed).length;
+      final todayIncomplete = today.where((a) => ! a.completed).length;
+      final overdueIncomplete = overdue.where((a) => !a. completed).length;
 
       return todayIncomplete + overdueIncomplete;
     } catch (e) {
@@ -416,26 +472,26 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
     ThemeData theme =
     MediaQuery.of(context).platformBrightness == Brightness.dark &&
         ref.watch(currentThemeProvider).darkTheme != null
-        ? ref.watch(currentThemeProvider).darkTheme!
-        : ref.watch(currentThemeProvider).lightTheme;
+        ? ref.watch(currentThemeProvider). darkTheme!
+        : ref. watch(currentThemeProvider).lightTheme;
 
     final isMetallic = ref.watch(metallicProvider);
     Color textColor = (theme.brightness == Brightness.dark)
-        ? Colors.white.withValues(alpha: 0.85)
-        : Colors.black.withValues(alpha: 0.85);
+        ? Colors. white. withValues(alpha: 0.85)
+        : Colors.black. withValues(alpha: 0.85);
     final isLightTheme = theme.brightness == Brightness.light;
     final accentColor = _getAccentColor();
     final pendingCount = _getPendingAssignmentsCount();
 
-    double width = MediaQuery.of(context).size.width;
-    double height = MediaQuery.of(context).size.height;
+    double width = MediaQuery.of(context).size. width;
+    double height = MediaQuery. of(context).size.height;
 
     return Scaffold(
       backgroundColor: isLightTheme
           ? const Color.fromARGB(255, 248, 248, 245)
           : const Color.fromARGB(255, 30, 30, 40),
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(72),
+        preferredSize: const Size. fromHeight(72),
         child: Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -461,7 +517,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
             ),
             // Center - App title with enhanced styling
             title: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize. min,
               children: [
                 ShaderMask(
                   shaderCallback: (bounds) => LinearGradient(
@@ -471,12 +527,12 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                  ).createShader(bounds),
+                  ). createShader(bounds),
                   child: const Text(
                     "SyncedIn",
                     style: TextStyle(
                       fontSize: 30,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight. w800,
                       letterSpacing: -0.5,
                       color: Colors.white, // Required for ShaderMask
                     ),
@@ -519,17 +575,17 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
                         color: isLightTheme
                             ? Colors.black.withValues(alpha: 0.04)
                             : Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius. circular(14),
                         border: Border.all(
                           color: isLightTheme
-                              ? Colors.black.withValues(alpha: 0.08)
+                              ? Colors. black. withValues(alpha: 0.08)
                               : Colors.white.withValues(alpha: 0.1),
-                          width: 1.5,
+                          width: 1. 5,
                         ),
                       ),
                       child: Icon(
                         Icons.notifications_outlined,
-                        color: textColor.withValues(alpha: 0.7),
+                        color: textColor. withValues(alpha: 0.7),
                         size: 24,
                       ),
                     ),
@@ -550,10 +606,10 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
                                 Colors.red.shade600,
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius. circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.red.withValues(alpha: 0.4),
+                                color: Colors. red.withValues(alpha: 0. 4),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -567,7 +623,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
                             child: Text(
                               pendingCount > 99 ? '99+' : '$pendingCount',
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: Colors. white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w900,
                                 height: 1.0,
@@ -584,8 +640,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           ),
         ),
       ),
+      // UPDATED: Added 4th navigation destination for Task List
       bottomNavigationBar: NavigationBar(
-          backgroundColor: theme.colorScheme.surface,
+          backgroundColor: theme.colorScheme. surface,
           onDestinationSelected: (int index) {
             setState(() {
               currentIndex = index;
@@ -593,17 +650,26 @@ class _MyHomePageState extends ConsumerState<MyHomePage>
           },
           indicatorColor: theme.indicatorColor,
           selectedIndex: currentIndex,
-          destinations: const <Widget>[
-            NavigationDestination(
-              icon: Icon(Icons.calendar_month_rounded),
+          destinations: <Widget>[
+            const NavigationDestination(
+              icon: Icon(Icons. calendar_month_rounded),
               label: "Calendar",
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.assignment_turned_in_rounded),
               label: "Assignments",
             ),
+            // NEW: Task List destination
             NavigationDestination(
-              icon: Icon(Icons.settings_rounded),
+              icon: Badge(
+                isLabelVisible: taskManager.length > 0,
+                label: Text('${taskManager.length}'),
+                child: const Icon(Icons.checklist_rounded),
+              ),
+              label: "Tasks",
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons. settings_rounded),
               label: "Settings",
             )
           ]),

@@ -9,6 +9,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/hive.dart';
+import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/screens/course_selection_screen.dart';
 
 const storage = FlutterSecureStorage();
 
@@ -194,7 +196,7 @@ class _LoginFlowWrapperState extends ConsumerState<LoginFlowWrapper>
       const String consK = "4228fad5be57913f4a288c71007cce38066a6a9c6";
       const String consS = "f16aa4e412861b3be29314970e2740ba";
 
-      final oauth1.Platform platform = oauth1.Platform(
+      final oauth1. Platform platform = oauth1.Platform(
           'https://api.schoology.com/v1/oauth/request_token',
           'https://$_currentDomain/oauth/authorize',
           'https://api.schoology.com/v1/oauth/access_token',
@@ -208,18 +210,18 @@ class _LoginFlowWrapperState extends ConsumerState<LoginFlowWrapper>
       final tempSecret = await storage.read(key: 'temp_oauth_secret');
 
       if (tempToken == null || tempSecret == null) {
-        throw Exception('OAuth session expired. Please try again.');
+        throw Exception('OAuth session expired.  Please try again.');
       }
 
       final tempCredentials = oauth1.Credentials(tempToken, tempSecret);
       final tempClient = oauth1.Client(
-          platform.signatureMethod,
+          platform. signatureMethod,
           clientCredentials,
           tempCredentials
       );
 
       final accessTokenResponse = await tempClient.get(
-          Uri.parse('https://api.schoology.com/v1/oauth/access_token?oauth_verifier=$tempToken')
+          Uri.parse('https://api.schoology.com/v1/oauth/access_token? oauth_verifier=$tempToken')
       );
 
       final accessParams = Uri(query: accessTokenResponse.body).queryParameters;
@@ -227,7 +229,7 @@ class _LoginFlowWrapperState extends ConsumerState<LoginFlowWrapper>
       final accessTokenSecret = accessParams['oauth_token_secret'];
 
       if (accessToken == null || accessTokenSecret == null) {
-        throw Exception('Failed to complete login. Please try again.');
+        throw Exception('Failed to complete login.  Please try again.');
       }
 
       // Store credentials securely
@@ -235,7 +237,7 @@ class _LoginFlowWrapperState extends ConsumerState<LoginFlowWrapper>
       await storage.write(key: 'oauth_secret', value: accessTokenSecret);
 
       // Clean up temp credentials
-      await storage.delete(key: 'temp_oauth_token');
+      await storage. delete(key: 'temp_oauth_token');
       await storage.delete(key: 'temp_oauth_secret');
 
       _isOAuthInProgress = false;
@@ -245,21 +247,95 @@ class _LoginFlowWrapperState extends ConsumerState<LoginFlowWrapper>
       ref.read(loginStageProvider.notifier).state = LoginStage.success;
       await Future.delayed(const Duration(milliseconds: 800));
 
-      // Navigate to main app using Navigator.pushReplacement for proper navigation
+      // NEW: Check course count and navigate accordingly
       if (mounted) {
-        Navigator.of(context).pushReplacement(
+        await _navigateToAppOrCourseSelection(accessToken, accessTokenSecret);
+      }
+    } catch (e) {
+      _handleOAuthError(e. toString());
+    }
+  }
+
+// NEW METHOD: Handle navigation with course selection check
+  // UPDATED METHOD:  Handle navigation with course selection check
+  Future<void> _navigateToAppOrCourseSelection(String accessToken, String accessTokenSecret) async {
+    try {
+      // Create temporary assignment manager to fetch courses
+      final hiveManager = HiveBoxManager();
+      final tempAM = AssignmentManager(hiveManager, accessToken, accessTokenSecret);
+
+      // Fetch courses (stores in temp if > 15)
+      await tempAM.getCourses();
+
+      if (! mounted) return;
+
+      // Check if course selection is needed
+      if (tempAM.needsCourseSelection()) {
+        // Get temp courses from Hive
+        final allCourses = hiveManager. box.get("temp_all_courses", defaultValue: []);
+        final allCourseIds = hiveManager. box.get("temp_all_ids", defaultValue: []);
+
+        // Navigate to course selection screen and wait for result
+        await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => home.Central(
-              oauthToken: accessToken,
-              oauthSecret: accessTokenSecret,
-              coursesNeeded: true,
+            builder: (context) => CourseSelectionScreen(
+              allCourses: allCourses,
+              allCourseIds: allCourseIds,
+              onConfirm: (selectedCourses, selectedIds) async {
+                await _handleCourseSelection(selectedCourses, selectedIds);
+              },
             ),
           ),
         );
       }
+
+      // Navigate to main app (whether or not course selection happened)
+      if (mounted) {
+        _navigateToMainApp(accessToken, accessTokenSecret);
+      }
     } catch (e) {
-      _handleOAuthError(e.toString());
+      print("Error checking courses: $e");
+      // On error, proceed to main app anyway
+      if (mounted) {
+        _navigateToMainApp(accessToken, accessTokenSecret);
+      }
     }
+  }
+
+// UPDATED METHOD: Handle course selection confirmation
+  Future<void> _handleCourseSelection(
+      List<dynamic> selectedCourses,
+      List<dynamic> selectedIds,
+      ) async {
+    try {
+      final hiveManager = HiveBoxManager();
+
+      // Save selected courses to Hive
+      await hiveManager.box.put("courses", selectedCourses);
+      await hiveManager.box.put("ids", selectedIds);
+
+      // Clean up temp storage
+      await hiveManager. box.delete("temp_all_courses");
+      await hiveManager.box.delete("temp_all_ids");
+
+      print("Saved ${selectedCourses.length} selected courses");
+    } catch (e) {
+      print("Error saving course selection: $e");
+      throw e;
+    }
+  }
+
+// NEW METHOD: Navigate to main app
+  void _navigateToMainApp(String accessToken, String accessTokenSecret) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => home.Central(
+          oauthToken:  accessToken,
+          oauthSecret: accessTokenSecret,
+          coursesNeeded: false, // Changed to false since courses are already fetched
+        ),
+      ),
+    );
   }
 
   void _handleOAuthError(String error) {

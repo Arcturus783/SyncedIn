@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/class_essentials/theme.dart';
 import 'assignment_viewer.dart';
 import 'package:myapp/class_essentials/assignment_manager.dart';
+import 'package:myapp/class_essentials/taskmanager.dart';
 
 class Folder extends ConsumerStatefulWidget {
   final String courseName;
@@ -11,6 +12,7 @@ class Folder extends ConsumerStatefulWidget {
   final AssignmentManager am;
   final int indexNum;
   bool autoHide;
+  final TaskManager? taskManager;
 
   Folder({
     super.key,
@@ -19,6 +21,7 @@ class Folder extends ConsumerStatefulWidget {
     required this.am,
     required this.indexNum,
     required this.autoHide,
+    required this.taskManager,
     this.onTap,
   });
 
@@ -104,6 +107,7 @@ class _FolderState extends ConsumerState<Folder>
           am: widget.am,
           timeBased: timeBased,
           autoHide: widget.autoHide,
+          taskManager: widget.taskManager,
         ),
       ),
     );
