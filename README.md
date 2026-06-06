@@ -1,16 +1,17 @@
-# myapp
+# SyncedIn
 
-A new Flutter project.
+SyncedIn is a cross-platform Flutter application that integrates with the Schoology LMS API to surface assignment data in a cleaner, more actionable interface than Schoology's native app. It supports multiple views — due-date and course-based folder lists, plus a full calendar with a local caching layer that auto-purges stale data to maintain performance. Users can personalize course colors, ordering, and visibility, with a freemium model planned to gate advanced features behind a premium tier. The project emphasizes UI polish through a cohesive theming system, purposeful use of depth and shadow, and a strong focus on usability.
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+https://github.com/user-attachments/assets/266a4321-2e6d-4a6c-ae6c-3d367aa3ed35
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+
+## Features
+
+- Three-legged Oauth 1.0 requests for secure API access
+- Caching of old assignments with automatic assignment purging 
+- Client-side API rate-limiting
+- Course UI customization (color, order, visibility controls)
+- Cross-platform support for iOS and Android
