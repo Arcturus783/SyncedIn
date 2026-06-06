@@ -1,7 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/class_essentials/assignment.dart';
 
-//this class manages our library storing data like course names and IDs
+//This class manages the library storing data like course names and IDs
 class HiveBoxManager {
   static final HiveBoxManager _instance = HiveBoxManager._internal();
   late final Box<dynamic> box;

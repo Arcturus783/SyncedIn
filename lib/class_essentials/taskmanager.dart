@@ -1,9 +1,3 @@
-// lib/task_manager. dart
-//
-// TaskManager: Manages a user-ordered list of assignments (tasks) that the user
-// wants to complete.  This list is independent of the main assignment data and
-// maintains its own custom order.  Persists to Hive for data retention.
-
 import 'package:myapp/class_essentials/assignment.dart';
 import 'package:myapp/class_essentials/hive.dart';
 
@@ -18,11 +12,8 @@ class TaskManager {
     _loadTasks();
   }
 
-  // ---------------------------------------------------------------------------
-  // Getters
-  // ---------------------------------------------------------------------------
 
-  /// Returns an unmodifiable view of the task list (preserves user's custom order)
+  /// Returns an unmodifiable view of the task lis
   List<Assignment> get tasks => List.unmodifiable(_tasks);
 
   /// Returns the number of tasks in the list
@@ -31,9 +22,6 @@ class TaskManager {
   /// Returns true if the task list is empty
   bool get isEmpty => _tasks. isEmpty;
 
-  // ---------------------------------------------------------------------------
-  // Core Operations
-  // ---------------------------------------------------------------------------
 
   /// Adds an assignment to the end of the task list.
   /// Returns true if added successfully, false if it's a duplicate.
@@ -73,10 +61,7 @@ class TaskManager {
   }
 
   /// Moves a task from oldIndex to newIndex.
-  /// This is called by ReorderableListView's onReorder callback.
-  ///
-  /// Note: ReorderableListView provides newIndex as the position in the list
-  /// BEFORE the item is removed.  We need to adjust for this behavior.
+  /// This is called by ReorderableListView's onReorder callback
   void moveTask(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= _tasks. length) return;
     if (newIndex < 0 || newIndex > _tasks.length) return;
@@ -98,9 +83,6 @@ class TaskManager {
     _saveTasks();
   }
 
-  // ---------------------------------------------------------------------------
-  // Query Operations
-  // ---------------------------------------------------------------------------
 
   /// Checks if an assignment is already in the task list.
   /// Compares by title and dueDate since Assignment instances may differ.
@@ -116,9 +98,6 @@ class TaskManager {
     return _tasks[index];
   }
 
-  // ---------------------------------------------------------------------------
-  // Private Helpers
-  // ---------------------------------------------------------------------------
 
   /// Finds the index of an assignment in the task list.
   /// Returns -1 if not found.
@@ -144,9 +123,6 @@ class TaskManager {
     return a.dueDate! .isAtSameMomentAs(b. dueDate! );
   }
 
-  // ---------------------------------------------------------------------------
-  // Persistence (Hive)
-  // ---------------------------------------------------------------------------
 
   /// Loads the task list from Hive storage.
   void _loadTasks() {

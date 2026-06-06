@@ -51,7 +51,7 @@ class AssignmentManager {
   // Original course-based storage for reference
   Map<String, List<Assignment>> assignments = {};
 
-  // NEW: Date-sorted list for efficient lookups
+  // Date-sorted list for efficient lookups
   List<Assignment> _sortedAssignments = [];
 
   // Index mapping for quick course-based access
@@ -193,7 +193,8 @@ class AssignmentManager {
 
       print("Assignment fetching complete. Total courses: ${assignments.length}");
 
-      _purgeOldAssignments(); //get rid of older assignments
+      _purgeOldAssignments();
+      //Get rid of older assignments
       await hiveManager.box.put("assignments", assignments);
       await hiveManager.box.put("lastAssignmentFetch", DateTime.now());
 
@@ -313,69 +314,6 @@ class AssignmentManager {
     final tempCourses = hiveManager.box.get("temp_all_courses", defaultValue: []);
     return tempCourses.length > 15;
   }
-
-  /*
-  // EXISTING METHODS (getCourses, _fetchAssignments, etc.) remain the same...
-  Future<void> getCourses() async {
-    try {
-      print("Fetching user courses...");
-      final authedClient = _createAuthenticatedClient();
-
-      await RateLimitManager.checkAndWait();
-      final uidResponse = await authedClient
-          .get(Uri.parse('https://api.schoology.com/v1/app-user-info/api_uid'));
-
-      if (uidResponse.statusCode != 200) {
-        throw Exception('Failed to get user ID: ${uidResponse.statusCode}');
-      }
-
-      Map<String, dynamic> uidJson = jsonDecode(uidResponse.body);
-      dynamic uid = uidJson['api_uid'];
-
-      await RateLimitManager.checkAndWait();
-      final response = await authedClient
-          .get(Uri.parse('https://api.schoology.com/v1/users/$uid/sections'));
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to get sections: ${response.statusCode}');
-      }
-
-      await RateLimitManager.checkAndWait();
-      final nameResponse = await authedClient
-          .get(Uri.parse('https://api.schoology.com/v1/users/$uid'));
-
-      if (nameResponse.statusCode != 200) {
-        throw Exception('Failed to get user name: ${nameResponse.statusCode}');
-      }
-
-      Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-      Map<String, dynamic> jsonNameResponse = jsonDecode(nameResponse.body);
-      List<dynamic> sections = jsonResponse['section'] ?? [];
-
-      if (sections.isEmpty) {
-        print("No sections found for user");
-        return;
-      }
-
-      List<dynamic> courseTitles =
-      sections.map((section) => section['course_title']).toList();
-      List<dynamic> courseIds =
-      sections.map((section) => section['id']).toList();
-
-      print("Found ${courseTitles.length} courses: $courseTitles");
-
-      await hiveManager.box.put("courses", courseTitles);
-      await hiveManager.box.put("ids", courseIds);
-      await hiveManager.box.put("name", jsonNameResponse['name_first']);
-      numCourses = courseTitles.length;
-
-    } catch (e) {
-      print("Error fetching courses: $e");
-      rethrow;
-    }
-  }
-
-   */
 
   Future<void> _fetchAssignments(
       String id, String courseName, oauth1.Client authedClient) async {
@@ -505,11 +443,6 @@ class AssignmentManager {
   }
 
 
-
-  // ==============================================================================
-  // NEW OPTIMIZED QUERY METHODS USING BINARY SEARCH
-  // ==============================================================================
-
   /// Get assignments for a specific date - O(log n) complexity
   List<Assignment> getAssignmentsForDate(DateTime date) {
     if (_sortedAssignments.isEmpty) return [];
@@ -525,7 +458,6 @@ class AssignmentManager {
     return _getAssignmentsInRange(startDate, endDate);
   }
 
-  /// Get assignments for entire month - optimized for calendar view
   /// Returns Map<day, assignments> for efficient calendar rendering
   Map<int, List<Assignment>> getAssignmentsForMonth(int year, int month) {
     DateTime monthStart = DateTime(year, month, 1);
@@ -594,22 +526,6 @@ class AssignmentManager {
         .toList();
   }
 
-  /*
-  List<Assignment> _getAssignmentsInRange(DateTime startDate, DateTime endDate) {
-    if (_sortedAssignments.isEmpty) return [];
-
-    int startIndex = _findFirstAssignmentAtOrAfter(startDate);
-    print("DEBUG: startIndex=$startIndex for $startDate");
-
-    if (startIndex == -1) return [];
-
-    int endIndex = _findFirstAssignmentAfter(endDate);
-    print("DEBUG: endIndex=$endIndex for $endDate");
-
-    if (endIndex == -1) endIndex = _sortedAssignments.length;
-
-    return _sortedAssignments.sublist(startIndex, endIndex);
-  }*/
 
   /// Binary search for first assignment at or after target date
   int _findFirstAssignmentAtOrAfter(DateTime targetDate) {
@@ -658,9 +574,6 @@ class AssignmentManager {
     return result;
   }
 
-  // ==============================================================================
-  // OPTIMIZED CONVENIENCE METHODS
-  // ==============================================================================
 
   List<Assignment> getAssignmentsDueToday() {
     return getAssignmentsForDate(DateTime.now());
@@ -698,9 +611,7 @@ class AssignmentManager {
     return _getAssignmentsInRange(dayAfterTomorrow, endOfWeek);
   }
 
-  // ==============================================================================
-  // LEGACY METHODS (maintained for compatibility)
-  // ==============================================================================
+
 
   List<Assignment> getAssignmentsForCourse(String courseName) {
     return assignments[courseName] ?? [];
