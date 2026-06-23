@@ -432,8 +432,8 @@ class AssignmentManager {
         'https://api.schoology.com/v1/oauth/access_token',
         oauth1.SignatureMethods.hmacSha1);
 
-    const String consK = "4228fad5be57913f4a288c71007cce38066a6a9c6";
-    const String consS = "f16aa4e412861b3be29314970e2740ba";
+    const String consK = "key";
+    const String consS = "sec";
 
     final oauth1.ClientCredentials clientCredentials =
     oauth1.ClientCredentials(consK, consS);
